@@ -1,0 +1,143 @@
+id,run_id,report_type,title,content,ai_model,metrics_summary,published_to,published_url,created_at,app_code,country_code,env_code
+7,FINAL_VALIDATION_20250805_083925,comprehensive_performance_report,QA Intelligence Final Validation - EVA RO,Comprehensive performance test report with detailed analysis,,"{""total_requests"": 3500, ""success_rate"": 99.6, ""avg_response_time"": 165.7, ""total_rps"": 11.67, ""endpoints_tested"": 3, ""errors_found"": 13, ""duration_seconds"": 300}",confluence,https://company.atlassian.net/wiki/spaces/QA/pages/simulated,2025-08-05 06:39:25,EVA,RO,STA
+6,FINAL_VALIDATION_20250805_083859,comprehensive_performance_report,QA Intelligence Final Validation - EVA RO,Comprehensive performance test report with detailed analysis,,"{""total_requests"": 3500, ""success_rate"": 99.6, ""avg_response_time"": 165.7, ""total_rps"": 11.67, ""endpoints_tested"": 3, ""errors_found"": 13, ""duration_seconds"": 300}",confluence,https://company.atlassian.net/wiki/spaces/QA/pages/simulated,2025-08-05 06:38:59,EVA,RO,STA
+5,FINAL_VALIDATION_20250805_083819,comprehensive_performance_report,QA Intelligence Final Validation - EVA RO,Comprehensive performance test report with detailed analysis,,"{""total_requests"": 3500, ""success_rate"": 99.6, ""avg_response_time"": 165.7, ""total_rps"": 11.67, ""endpoints_tested"": 3, ""errors_found"": 13, ""duration_seconds"": 300}",confluence,https://company.atlassian.net/wiki/spaces/QA/pages/simulated,2025-08-05 06:38:19,EVA,RO,STA
+4,FINAL_VALIDATION_20250805_083745,comprehensive_performance_report,QA Intelligence Final Validation - EVA RO,Comprehensive performance test report with detailed analysis,,"{""total_requests"": 3500, ""success_rate"": 99.6, ""avg_response_time"": 165.7, ""total_rps"": 11.67, ""endpoints_tested"": 3, ""errors_found"": 13, ""duration_seconds"": 300}",confluence,https://company.atlassian.net/wiki/spaces/QA/pages/simulated,2025-08-05 06:37:46,EVA,RO,STA
+3,EVA_RO_STA_20250804193143,comprehensive_performance_report,QA Intelligence Report - EVA RO - 2025-08-05,"
+<h1>🧪 QA Intelligence - Reporte de Rendimiento</h1>
+
+<div style=""background-color: #f0f8ff; padding: 15px; border-left: 5px solid #0066cc; margin: 10px 0;"">
+<h2>🟢 Estado General: EXCELENTE</h2>
+<p><strong>Tasa de éxito:</strong> 100.0% | <strong>Tiempo promedio:</strong> 166.0ms | <strong>Total requests:</strong> 2,700</p>
+</div>
+
+<h2>📋 resumen de ejecución</h2>
+<table class=""confluenceTable"">
+<thead>
+<tr><th>Métrica</th><th>Valor</th><th>Estado</th></tr>
+</thead>
+<tbody>
+<tr><td>Run ID</td><td><code>EVA_RO_STA_20250804193143</code></td><td>-</td></tr>
+<tr><td>Aplicación</td><td>EVA</td><td>-</td></tr>
+<tr><td>País</td><td>RO</td><td>-</td></tr>
+<tr><td>Entorno</td><td>STA</td><td>-</td></tr>
+<tr><td>Fecha de ejecución</td><td>2025-08-04T19:31:43+00:00</td><td>-</td></tr>
+<tr><td>Duración</td><td>117 segundos</td><td>-</td></tr>
+<tr><td>Total de Requests</td><td>2,700</td><td>✅</td></tr>
+<tr><td>Tasa de Éxito</td><td>100.0%</td><td>✅</td></tr>
+<tr><td>Tiempo Promedio</td><td>166.0ms</td><td>✅</td></tr>
+<tr><td>Tiempo Máximo</td><td>3156ms</td><td>⚠️</td></tr>
+<tr><td>RPS Promedio</td><td>4.58</td><td>✅</td></tr>
+</tbody>
+</table>
+
+<h2>🎯 Detalle de Endpoints</h2>
+<table class=""confluenceTable"">
+<thead>
+<tr><th>Endpoint</th><th>Requests</th><th>Éxito</th><th>Fallos</th><th>Tasa Éxito</th><th>Tiempo Promedio</th><th>P95</th><th>P99</th><th>RPS</th></tr>
+</thead>
+<tbody>
+
+<tr>
+<td>CHECK_ENROLMENT</td>
+<td>540</td>
+<td>540</td>
+<td>0</td>
+<td>✅ 100.0%</td>
+<td>198ms</td>
+<td>485ms</td>
+<td>0ms</td>
+<td>4.58</td>
+</tr>
+
+<tr>
+<td>GET_TRANSACTIONS</td>
+<td>540</td>
+<td>540</td>
+<td>0</td>
+<td>✅ 100.0%</td>
+<td>246ms</td>
+<td>1514ms</td>
+<td>0ms</td>
+<td>4.58</td>
+</tr>
+
+<tr>
+<td>GET_DASHBOARD</td>
+<td>540</td>
+<td>540</td>
+<td>0</td>
+<td>✅ 100.0%</td>
+<td>130ms</td>
+<td>283ms</td>
+<td>0ms</td>
+<td>4.58</td>
+</tr>
+
+<tr>
+<td>GET_HELP</td>
+<td>540</td>
+<td>540</td>
+<td>0</td>
+<td>✅ 100.0%</td>
+<td>70ms</td>
+<td>101ms</td>
+<td>0ms</td>
+<td>4.58</td>
+</tr>
+
+<tr>
+<td>GET_CARDS</td>
+<td>540</td>
+<td>540</td>
+<td>0</td>
+<td>✅ 100.0%</td>
+<td>186ms</td>
+<td>1378ms</td>
+<td>0ms</td>
+<td>4.58</td>
+</tr>
+</tbody></table>
+<h2>✅ Análisis de Errores</h2>
+<div style=""background-color: #f0fff0; padding: 15px; border-left: 5px solid #28a745; margin: 10px 0;"">
+<p><strong>🎉 ¡Excelente! No se encontraron errores durante la ejecución.</strong></p>
+</div>
+
+<h2>💡 Recomendaciones y Análisis</h2>
+<div style=""background-color: #fffbf0; padding: 15px; border-left: 5px solid #ffc107; margin: 10px 0;"">
+<p>✅ <strong>Rendimiento Excelente:</strong> La tasa de éxito es superior al 99%, indicando un sistema muy estable.</p><p>🚀 <strong>Respuesta Rápida:</strong> El tiempo de respuesta promedio es excelente (≤200ms).</p><p>🟡 <strong>Latencia Moderada:</strong> Algunos requests tardaron más de 2s, monitorear rendimiento.</p>
+</div>
+
+<h2>📊 Información Técnica</h2>
+<ul>
+<li><strong>Herramienta de Testing:</strong> Gatling 3.10.3</li>
+<li><strong>Plataforma:</strong> QA Intelligence Platform</li>
+<li><strong>Fecha de Generación:</strong> 2025-08-05 08:32:26 UTC</li>
+<li><strong>Comando Trigger:</strong> Analysis of gatling-20250804193143515</li>
+</ul>
+
+<div style=""background-color: #f8f9fa; padding: 10px; border: 1px solid #dee2e6; margin: 20px 0;"">
+<p><em>Este reporte fue generado automáticamente por QA Intelligence Platform. Para más detalles técnicos, consulte la base de datos del sistema o los archivos de resultados exportados.</em></p>
+</div>
+",qa_intelligence_v1,"{""total_requests"": 2700, ""success_rate"": 100.0, ""avg_response_time"": 166.0, ""endpoints_tested"": 5, ""errors_found"": 0}",confluence,https://company.atlassian.net/wiki/spaces/QA/pages/simulated,2025-08-05 06:32:26,EVA,RO,STA
+2,CONFLUENCE_TEST_20250805_082610,confluence_integration_test,Performance Test Report - Confluence Integration,"
+# Performance Test Report
+
+## Test Summary
+- **Run ID**: CONFLUENCE_TEST_20250805_082610
+- **Application**: EVA Romania Staging
+- **Duration**: 45 seconds
+- **Total Requests**: 200
+- **Success Rate**: 99%
+- **Average Response Time**: 217ms
+
+## Key Metrics
+- Dashboard endpoint: 98/100 successful (245ms avg)
+- Transactions endpoint: 100/100 successful (189ms avg)
+- Overall performance: EXCELLENT
+
+## Recommendations
+- Monitor dashboard endpoint for occasional failures
+- Performance is within acceptable thresholds
+                ",confluence_test_v1,"{""total_requests"": 200, ""success_rate"": 99.0, ""avg_response_time"": 217, ""p95_response_time"": 500}",confluence,https://company.atlassian.net/wiki/spaces/QA/pages/simulated,2025-08-05 06:26:10,EVA,RO,STA
+1,TEST_REPORT_VALIDATION_20250805_082241,performance_summary,Test Performance Report,This is a test report to validate database storage,test_model,"{""avg_response"": 250, ""success_rate"": 100, ""total_requests"": 50}",database,,2025-08-05 06:22:41,EVA,RO,STA

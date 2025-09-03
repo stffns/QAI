@@ -1,0 +1,2 @@
+id,run_id,report_type,title,content,ai_model,metrics_summary,published_to,published_url,created_at
+1,TEST_REPORT_VALIDATION_20250805_082241,performance_summary,Test Performance Report,This is a test report to validate database storage,test_model,"{""avg_response"": 250, ""success_rate"": 100, ""total_requests"": 50}",database,,2025-08-05 06:22:41

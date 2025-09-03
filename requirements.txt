@@ -1,0 +1,10 @@
+agno
+python-dotenv
+openai
+duckduckgo-search
+fastapi
+uvicorn
+pydantic[dotenv]
+pyyaml
+ddgs
+sqlalchemy

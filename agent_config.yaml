@@ -1,0 +1,175 @@
+# Configuración de Agentes de Chat
+# Edita este archivo para personalizar el comportamiento de tus agentes
+
+# Configuración del Modelo de IA
+model:
+  provider: "openai"  # openai, azure, deepseek
+  id: "gpt-4"  # gpt-3.5-turbo, gpt-4, gpt-4-turbo
+  temperature: 1.0  # 0.0 = más determinista, 2.0 = más creativo
+  max_tokens: null  # null = sin límite, número = límite específico
+
+# Configuración de Modelos Alternativos
+alternative_models:
+  azure:
+    id: "gpt-4.1-glb-ui"
+    endpoint: "https://plx-oai-shd-dev-eu2-1.openai.azure.com/"
+    deployment: "gpt-4.1-glb-ui"
+    api_version: "2024-12-01-preview"
+  
+  deepseek:
+    id: "deepseek-chat"
+    endpoint: "https://api.deepseek.com"
+
+# Configuración de Reasoning (Razonamiento)
+# ⚠️  IMPORTANTE: Reasoning está deshabilitado por defecto para uso normal
+# Para habilitar reasoning avanzado, cambiar enabled: true
+reasoning:
+  enabled: false  # true para habilitar reasoning
+  type: "agent"  # "model", "tools", "agent"
+  model_id: "o3-mini"  # Para type: "model" - o3-mini, o1-preview, deepseek-r1-distill-llama-70b
+  add_instructions: true  # Para type: "tools" - agregar instrucciones de pensamiento
+  show_full_reasoning: true  # Mostrar el proceso de razonamiento completo
+  stream_intermediate_steps: true  # Streamear pasos intermedios
+
+# Tipos de reasoning disponibles:
+# - "agent": Reasoning básico con chain-of-thought (recomendado)
+# - "model": Usa modelo especializado en reasoning (o3-mini, o1-preview)
+# - "tools": Usa ThinkingTools para pensamiento estructurado
+
+# Instrucciones del Agente
+agent:
+  instructions:
+    - "Eres un asistente de IA útil y amigable especializado en QA e Intelligence."
+    - "Responde de manera clara, concisa y profesional."
+    - "Si no sabes algo, admítelo honestamente y sugiere alternativas."
+    - "Usa ejemplos prácticos cuando sea apropiado."
+    - "Mantén un tono accesible pero profesional."
+  
+  # Personalidad y comportamiento
+  personality:
+    style: "profesional_amigable"  # formal, casual, profesional_amigable
+    expertise_domain: "qa_testing"  # qa_testing, general, desarrollo, datos
+    response_length: "medium"  # short, medium, long, adaptive
+
+# Herramientas Habilitadas
+tools:
+  web_search: true      # Búsqueda en internet con DuckDuckGo
+  python_execution: true  # Ejecutar código Python
+  file_operations: false  # Leer/escribir archivos (cuidado en producción)
+  calculator: true      # Cálculos matemáticos
+  web_scraping: false   # Scraping de páginas web
+
+# Configuración de Base de Datos
+database:
+  # Base de datos principal
+  url: "sqlite:///./data/qa_intelligence.db"
+  
+  # Bases de datos específicas
+  paths:
+    conversations: "data/chat_conversations.db"
+    knowledge: "data/agno_knowledge.db"
+    rag: "data/qa_intelligence_rag.db"
+    exports: "data/exports/"
+  
+  # Configuración de conexión
+  connection:
+    pool_size: 5
+    max_overflow: 10
+    timeout: 30
+
+# Configuración de la Interfaz
+interface:
+  # Configuración del chat en terminal
+  terminal:
+    show_tool_calls: true     # Mostrar cuando se usan herramientas
+    enable_markdown: true     # Formato markdown en respuestas
+    enable_colors: true       # Colores en la terminal
+    show_thinking: false      # Mostrar "pensando..." durante procesamiento
+  
+  # Configuración del playground web
+  playground:
+    enabled: true
+    host: "localhost"
+    port: 7777
+    auto_open_browser: false
+    authentication: false
+    theme: "dark"  # dark, light, auto
+
+# Configuración de Memoria y Contexto
+memory:
+  # Memoria de conversación (básica)
+  conversation:
+    max_history: 50        # Máximo de mensajes en memoria
+    summarize_old: true    # Resumir conversaciones antiguas
+    persist_sessions: true # Guardar sesiones en BD
+  
+  # User Memories (personalización QA) ⭐ NUEVO
+  user_memories:
+    enabled: true          # Habilitar memorias de usuario
+    agentic_management: true # El agente gestiona automáticamente
+    max_memories_per_user: 50 # Límite de memorias por usuario
+    
+  # Contextos de usuario para QA Intelligence ⭐ NUEVO
+  qa_contexts:
+    default: "qa_analyst@qai.com"
+    analyst: "qa_analyst@qai.com"
+    engineer: "test_engineer@qai.com"
+    automation: "automation_engineer@qai.com"
+  
+  # Memoria de conocimiento (RAG)
+  knowledge:
+    enable_rag: true       # Usar RAG para conocimiento
+    chunk_size: 1000       # Tamaño de chunks para vectorización
+    overlap: 200           # Overlap entre chunks
+
+# Configuración de Storage Avanzado ⭐ NUEVO  
+storage:
+  # Base de datos para memorias
+  memories:
+    backend: "sqlite"      # sqlite, postgresql, mongodb, redis
+    sqlite:
+      file: "data/qa_memories.db"
+      table: "qa_user_memories"
+    # postgresql:
+    #   connection_string: "postgresql://user:pass@localhost/qai"
+    #   table: "qa_memories"
+  
+  # Base de datos para sesiones
+  sessions:
+    backend: "sqlite"
+    sqlite:
+      file: "data/qa_sessions.db" 
+      table: "qa_sessions"
+
+# Configuración de Logging y Debug
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "logs/agent.log"
+  console: true
+  format: "detailed"  # simple, detailed, json
+
+debug:
+  enabled: true
+  save_conversations: true
+  log_tool_calls: true
+  performance_metrics: false
+
+# Configuración de Seguridad
+security:
+  # Límites de rate limiting
+  rate_limits:
+    requests_per_minute: 60
+    tokens_per_hour: 100000
+  
+  # Filtros de contenido
+  content_filters:
+    enable_safety: true
+    block_personal_info: true
+    block_code_execution_in_prod: true
+
+# Configuración del Entorno
+environment:
+  name: "development"  # development, staging, production
+  data_directory: "data"
+  logs_directory: "logs"
+  temp_directory: "temp"

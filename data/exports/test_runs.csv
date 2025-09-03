@@ -1,0 +1,5 @@
+run_id,start_time,end_time,duration_seconds,status,trigger_command,app_name,country,environment,scenario,test_type
+TEST_REPORT_VALIDATION_20250805_082241,2025-08-05T08:22:41.438826,2025-08-05T08:22:41.438828,30.0,completed,Test reporting functionality,EVA,RO,STA,ALL,performance
+EVA_RO_STA_20250804193143,2025-08-04T19:31:43+00:00,2025-08-04T19:33:40+00:00,117.0,completed,Analysis of gatling-20250804193143515,EVA,RO,STA,ALL,performance
+EVA_RO_STA_20250804192712,2025-08-04T19:27:12+00:00,2025-08-04T19:27:54+00:00,42.0,completed,Analysis of gatling-20250804192712926,EVA,RO,STA,ALL,performance
+EVA_RO_STA_1rps_20250804210720,2025-08-04T19:24:03.224583+00:00,,,running,Run EVA RO for 1 user for 30 seconds,EVA,RO,STA,ALL,performance

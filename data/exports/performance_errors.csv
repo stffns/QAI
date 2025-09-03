@@ -1,0 +1,4 @@
+id,run_id,error_description,error_count,error_percentage,endpoint,status_code,created_at
+1,EVA_RO_STA_20250804164126,"Expected status in [200, 209], 304, but found 401",2160,40 %,,,2025-08-04 19:15:51
+2,EVA_RO_STA_20250804164126,"Expected status 200, but actually found 401",2160,40 %,,,2025-08-04 19:15:51
+3,EVA_RO_STA_20250804164126,"Expected status in 200,403, but actually found 401",1080,20 %,,,2025-08-04 19:15:51
