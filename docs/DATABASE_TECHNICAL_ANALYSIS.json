@@ -1,0 +1,2158 @@
+{
+  "analysis_timestamp": "2025-09-03T11:23:29.597115",
+  "database_info": {
+    "total_tables": 26,
+    "table_names": [
+      "environments",
+      "entity_aliases",
+      "countries_master",
+      "apps_master",
+      "environments_master",
+      "test_scenarios_master",
+      "test_types_master",
+      "batch_executions",
+      "agno_insights",
+      "rag_vectors",
+      "rag_metadata",
+      "users",
+      "roles",
+      "performance_slas",
+      "execution_windows",
+      "application_country_mapping",
+      "application_endpoints",
+      "test_executions",
+      "test_runs",
+      "user_roles",
+      "sla_violations",
+      "performance_results",
+      "performance_config",
+      "permissions",
+      "sqlite_sequence",
+      "user_permissions"
+    ],
+    "database_size_bytes": 458752,
+    "database_size_mb": 0.44
+  },
+  "table_structure": {
+    "environments": {
+      "columns": 6,
+      "row_count": 0,
+      "indexes": 1,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "env_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "env_key",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "display_name",
+          "type": "VARCHAR(200)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "entity_aliases": {
+      "columns": 5,
+      "row_count": 0,
+      "indexes": 1,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "alias",
+          "type": "VARCHAR(200)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "entity_type",
+          "type": "VARCHAR(20)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "entity_key",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "weight",
+          "type": "FLOAT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "countries_master": {
+      "columns": 9,
+      "row_count": 9,
+      "indexes": 0,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "country_name",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "country_code",
+          "type": "VARCHAR(10)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "region",
+          "type": "VARCHAR(100)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "currency_code",
+          "type": "VARCHAR(10)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "timezone",
+          "type": "VARCHAR(50)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "apps_master": {
+      "columns": 8,
+      "row_count": 2,
+      "indexes": 0,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "app_code",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "app_name",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "base_url_template",
+          "type": "VARCHAR(500)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "environments_master": {
+      "columns": 9,
+      "row_count": 0,
+      "indexes": 0,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "env_name",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "env_code",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR(500)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "url_pattern",
+          "type": "VARCHAR(500)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "is_production",
+          "type": "BOOLEAN",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "test_scenarios_master": {
+      "columns": 9,
+      "row_count": 0,
+      "indexes": 0,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "scenario_name",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "scenario_code",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "steps_json",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "category",
+          "type": "VARCHAR(100)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "test_types_master": {
+      "columns": 9,
+      "row_count": 0,
+      "indexes": 0,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "type_name",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "type_code",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "typical_duration_minutes",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "resource_requirements",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "batch_executions": {
+      "columns": 19,
+      "row_count": 118,
+      "indexes": 0,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "execution_id",
+          "type": "VARCHAR(255)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "batch_name",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "batch_status",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "app_name",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "country_name",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "execution_time",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "started_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "completed_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "result_file_path",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "execution_details",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "execution_result",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "simulation_data",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "test_type_name",
+          "type": "VARCHAR(255)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "execution_duration",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "error_message",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "agno_insights": {
+      "columns": 11,
+      "row_count": 0,
+      "indexes": 0,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "execution_id",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "insight_type",
+          "type": "VARCHAR(100)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "insight_title",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "insight_summary",
+          "type": "TEXT",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "insight_details",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "confidence_score",
+          "type": "FLOAT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "severity",
+          "type": "VARCHAR(20)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "actionable_recommendations",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "raw_ai_response",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "rag_vectors": {
+      "columns": 9,
+      "row_count": 0,
+      "indexes": 6,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "chunk_id",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "content",
+          "type": "TEXT",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "embedding_json",
+          "type": "TEXT",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "embedding_model",
+          "type": "VARCHAR(100)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "content_type",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "source_id",
+          "type": "VARCHAR(255)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "metadata_hash",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "rag_metadata": {
+      "columns": 20,
+      "row_count": 0,
+      "indexes": 15,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "chunk_id",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "execution_id",
+          "type": "VARCHAR(255)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "run_id",
+          "type": "VARCHAR(255)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "app_name",
+          "type": "VARCHAR(50)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "country_code",
+          "type": "VARCHAR(10)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "environment",
+          "type": "VARCHAR(50)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "test_type",
+          "type": "VARCHAR(50)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "endpoint_name",
+          "type": "VARCHAR(255)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "response_time_ms",
+          "type": "FLOAT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "throughput_rps",
+          "type": "FLOAT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "error_rate_percent",
+          "type": "FLOAT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "test_date",
+          "type": "VARCHAR(20)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "test_hour",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "section_type",
+          "type": "VARCHAR(50)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "content_length",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "confidence_score",
+          "type": "FLOAT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "relevance_tags",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "users": {
+      "columns": 13,
+      "row_count": 2,
+      "indexes": 2,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "username",
+          "type": "VARCHAR(150)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "password_hash",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "full_name",
+          "type": "VARCHAR(100)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "role",
+          "type": "VARCHAR(20)",
+          "not_null": false,
+          "default_value": "\"viewer\"",
+          "primary_key": false
+        },
+        {
+          "name": "is_verified",
+          "type": "BOOLEAN",
+          "not_null": false,
+          "default_value": "0",
+          "primary_key": false
+        },
+        {
+          "name": "last_login",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "preferences",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "api_key",
+          "type": "VARCHAR(100)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "roles": {
+      "columns": 5,
+      "row_count": 4,
+      "indexes": 1,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "performance_slas": {
+      "columns": 22,
+      "row_count": 7,
+      "indexes": 7,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "app_name",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "environment",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "country_code",
+          "type": "VARCHAR(3)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "endpoint_pattern",
+          "type": "VARCHAR(200)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "max_concurrent_users",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "max_duration_minutes",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "max_rps",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "execution_window_start",
+          "type": "TIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "execution_window_end",
+          "type": "TIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "allowed_days",
+          "type": "VARCHAR(20)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "timezone",
+          "type": "VARCHAR(50)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "risk_level",
+          "type": "VARCHAR(20)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "requires_approval",
+          "type": "BOOLEAN",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "auto_approval_threshold",
+          "type": "VARCHAR(20)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "alert_on_violation",
+          "type": "BOOLEAN",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "notification_channels",
+          "type": "JSON",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_by",
+          "type": "VARCHAR(100)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "execution_windows": {
+      "columns": 14,
+      "row_count": 0,
+      "indexes": 1,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "window_name",
+          "type": "VARCHAR(100)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "start_time",
+          "type": "TIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "end_time",
+          "type": "TIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "allowed_days",
+          "type": "VARCHAR(20)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "timezone",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "allowed_apps",
+          "type": "JSON",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "blocked_apps",
+          "type": "JSON",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "priority",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_by",
+          "type": "VARCHAR(100)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "application_country_mapping": {
+      "columns": 8,
+      "row_count": 9,
+      "indexes": 0,
+      "foreign_keys": 2,
+      "column_details": [
+        {
+          "name": "mapping_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "application_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "country_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "launched_date",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "deprecated_date",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "application_endpoints": {
+      "columns": 11,
+      "row_count": 0,
+      "indexes": 0,
+      "foreign_keys": 2,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "application_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "environment_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "endpoint_name",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "endpoint_url",
+          "type": "VARCHAR(500)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "http_method",
+          "type": "VARCHAR(10)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "endpoint_type",
+          "type": "VARCHAR(50)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "test_executions": {
+      "columns": 12,
+      "row_count": 0,
+      "indexes": 1,
+      "foreign_keys": 5,
+      "column_details": [
+        {
+          "name": "execution_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "execution_run_id",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "application_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "country_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "environment_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "scenario_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "test_type_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "execution_start_time",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "execution_duration_seconds",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "execution_status",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "trigger_type",
+          "type": "VARCHAR(100)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "execution_created_at",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "test_runs": {
+      "columns": 15,
+      "row_count": 0,
+      "indexes": 1,
+      "foreign_keys": 2,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "run_id",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "app_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "country_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "environment_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "scenario_id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "test_type_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "start_time",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "end_time",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "duration_seconds",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "trigger_type",
+          "type": "VARCHAR(100)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "trigger_command",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "user_roles": {
+      "columns": 2,
+      "row_count": 2,
+      "indexes": 1,
+      "foreign_keys": 2,
+      "column_details": [
+        {
+          "name": "user_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "role_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        }
+      ]
+    },
+    "sla_violations": {
+      "columns": 12,
+      "row_count": 0,
+      "indexes": 2,
+      "foreign_keys": 1,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "sla_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "command_text",
+          "type": "TEXT",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "violation_type",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "requested_value",
+          "type": "VARCHAR(100)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "sla_limit",
+          "type": "VARCHAR(100)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "risk_score",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "execution_status",
+          "type": "VARCHAR(20)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "approved_by",
+          "type": "VARCHAR(100)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "approval_reason",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "detected_at",
+          "type": "DATETIME",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "resolved_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "performance_results": {
+      "columns": 10,
+      "row_count": 0,
+      "indexes": 0,
+      "foreign_keys": 1,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "run_id",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "request_name",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "total_requests",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "ok_requests",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "ko_requests",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "mean_response_time",
+          "type": "FLOAT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "p95_response_time",
+          "type": "FLOAT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "rps_achieved",
+          "type": "FLOAT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "performance_config": {
+      "columns": 10,
+      "row_count": 0,
+      "indexes": 0,
+      "foreign_keys": 1,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "run_id",
+          "type": "VARCHAR(255)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "rps_target",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "users_count",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "ramp_duration_minutes",
+          "type": "FLOAT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "hold_duration_minutes",
+          "type": "FLOAT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "ramp_down_duration_minutes",
+          "type": "FLOAT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "simulation_class",
+          "type": "VARCHAR(255)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "gatling_version",
+          "type": "VARCHAR(50)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "config_json",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "permissions": {
+      "columns": 5,
+      "row_count": 12,
+      "indexes": 1,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "category",
+          "type": "VARCHAR(50)",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP",
+          "not_null": false,
+          "default_value": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        }
+      ]
+    },
+    "sqlite_sequence": {
+      "columns": 2,
+      "row_count": 2,
+      "indexes": 0,
+      "foreign_keys": 0,
+      "column_details": [
+        {
+          "name": "name",
+          "type": "",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "seq",
+          "type": "",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    },
+    "user_permissions": {
+      "columns": 5,
+      "row_count": 12,
+      "indexes": 1,
+      "foreign_keys": 2,
+      "column_details": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": true
+        },
+        {
+          "name": "user_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "permission_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default_value": null,
+          "primary_key": false
+        },
+        {
+          "name": "granted_at",
+          "type": "TIMESTAMP",
+          "not_null": false,
+          "default_value": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "name": "granted_by",
+          "type": "VARCHAR(50)",
+          "not_null": false,
+          "default_value": null,
+          "primary_key": false
+        }
+      ]
+    }
+  },
+  "data_quality_issues": {
+    "missing_data": [],
+    "data_inconsistencies": [],
+    "referential_integrity": [],
+    "performance_issues": []
+  },
+  "performance_metrics": {
+    "largest_tables": [
+      [
+        "batch_executions",
+        118
+      ],
+      [
+        "permissions",
+        12
+      ],
+      [
+        "user_permissions",
+        12
+      ],
+      [
+        "countries_master",
+        9
+      ],
+      [
+        "application_country_mapping",
+        9
+      ],
+      [
+        "performance_slas",
+        7
+      ],
+      [
+        "roles",
+        4
+      ],
+      [
+        "apps_master",
+        2
+      ],
+      [
+        "users",
+        2
+      ],
+      [
+        "user_roles",
+        2
+      ]
+    ],
+    "total_records": 179,
+    "missing_indexes": [],
+    "tables_without_data": [
+      "environments",
+      "entity_aliases",
+      "environments_master",
+      "test_scenarios_master",
+      "test_types_master",
+      "agno_insights",
+      "rag_vectors",
+      "rag_metadata",
+      "execution_windows",
+      "application_endpoints",
+      "test_executions",
+      "test_runs",
+      "sla_violations",
+      "performance_results",
+      "performance_config"
+    ]
+  },
+  "improvement_recommendations": {
+    "immediate_fixes": [],
+    "security_improvements": [
+      "Implementar hash seguro de passwords (bcrypt/argon2)",
+      "Agregar tabla de audit_logs",
+      "Implementar rate limiting para autenticación",
+      "Agregar campos de seguridad (is_locked, failed_attempts)"
+    ],
+    "performance_optimizations": [],
+    "data_quality_improvements": [
+      "Implementar validaciones Pydantic para todos los modelos",
+      "Agregar constraints CHECK para rangos de valores",
+      "Implementar limpieza automática de datos obsoletos"
+    ],
+    "architectural_changes": [
+      "Separar esquemas por dominio (security, execution, config)",
+      "Implementar versionado de esquemas con Alembic",
+      "Migrar a PostgreSQL con extensiones (pgvector, pg_stat_statements)",
+      "Implementar sistema de eventos para auditoría",
+      "Agregar vistas materializadas para analytics"
+    ]
+  },
+  "migration_script": "-- Agregar constraints de integridad\nPRAGMA foreign_keys = ON;\n\n-- Agregar índices para performance\nCREATE INDEX IF NOT EXISTS idx_test_runs_status ON test_runs(status);\nCREATE INDEX IF NOT EXISTS idx_test_runs_app_country ON test_runs(app_id, country_id);\nCREATE INDEX IF NOT EXISTS idx_performance_results_run ON performance_results(run_id);\nCREATE INDEX IF NOT EXISTS idx_batch_executions_status ON batch_executions(status);\n\n-- Agregar índices para RAG queries\nCREATE INDEX IF NOT EXISTS idx_rag_metadata_app_env ON rag_metadata(app_name, environment);\nCREATE INDEX IF NOT EXISTS idx_rag_vectors_content_type ON rag_vectors(content_type);"
+}
