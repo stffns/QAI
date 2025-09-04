@@ -7,9 +7,9 @@ from sqlalchemy import and_, func
 
 from .base import BaseRepository
 from .exceptions import EntityNotFoundError, EntityAlreadyExistsError
-from ..models.apps_master import AppsMaster
+from ..models.apps import Apps
 
-class AppsRepository(BaseRepository[AppsMaster]):
+class AppsRepository(BaseRepository[Apps]):
     """
     Repository for Apps Master operations
     
@@ -21,9 +21,9 @@ class AppsRepository(BaseRepository[AppsMaster]):
     """
     
     def __init__(self, session: Session):
-        super().__init__(session, AppsMaster)
+        super().__init__(session, Apps)
     
-    def get_by_code(self, app_code: str) -> Optional[AppsMaster]:
+    def get_by_code(self, app_code: str) -> Optional[Apps]:
         """
         Find application by unique app code
         
@@ -31,27 +31,27 @@ class AppsRepository(BaseRepository[AppsMaster]):
             app_code: Unique application code
             
         Returns:
-            AppsMaster instance if found, None otherwise
+            Apps instance if found, None otherwise
         """
         try:
-            statement = select(AppsMaster).where(AppsMaster.app_code == app_code)
+            statement = select(Apps).where(Apps.app_code == app_code)
             result = self.session.exec(statement).first()
             return result
         except Exception as e:
             raise EntityNotFoundError(f"App with code '{app_code}' not found") from e
     
-    def get_active_apps(self) -> List[AppsMaster]:
+    def get_active_apps(self) -> List[Apps]:
         """
         Get all active applications
         
         Returns:
-            List of active AppsMaster instances
+            List of active Apps instances
         """
-        statement = select(AppsMaster).where(AppsMaster.is_active == True)
+        statement = select(Apps).where(Apps.is_active == True)
         result = self.session.exec(statement).all()
         return list(result)
     
-    def search_by_name(self, name_pattern: str) -> List[AppsMaster]:
+    def search_by_name(self, name_pattern: str) -> List[Apps]:
         """
         Search applications by name pattern (case-insensitive)
         
@@ -59,15 +59,15 @@ class AppsRepository(BaseRepository[AppsMaster]):
             name_pattern: Pattern to search for in app names
             
         Returns:
-            List of matching AppsMaster instances
+            List of matching Apps instances
         """
-        statement = select(AppsMaster).where(
-            AppsMaster.app_name.ilike(f"%{name_pattern}%")
+        statement = select(Apps).where(
+            Apps.app_name.ilike(f"%{name_pattern}%")
         )
         result = self.session.exec(statement).all()
         return list(result)
     
-    def get_apps_by_description_keyword(self, keyword: str) -> List[AppsMaster]:
+    def get_apps_by_description_keyword(self, keyword: str) -> List[Apps]:
         """
         Find applications containing a keyword in their description
         
@@ -75,12 +75,12 @@ class AppsRepository(BaseRepository[AppsMaster]):
             keyword: Keyword to search for
             
         Returns:
-            List of matching AppsMaster instances
+            List of matching Apps instances
         """
-        statement = select(AppsMaster).where(
+        statement = select(Apps).where(
             and_(
-                AppsMaster.description.ilike(f"%{keyword}%"),
-                AppsMaster.is_active == True
+                Apps.description.ilike(f"%{keyword}%"),
+                Apps.is_active == True
             )
         )
         result = self.session.exec(statement).all()
@@ -93,7 +93,7 @@ class AppsRepository(BaseRepository[AppsMaster]):
         Returns:
             Number of active applications
         """
-        statement = select(func.count(AppsMaster.id)).where(AppsMaster.is_active == True)
+        statement = select(func.count(Apps.id)).where(Apps.is_active == True)
         result = self.session.exec(statement).one()
         return result
     
@@ -107,12 +107,12 @@ class AppsRepository(BaseRepository[AppsMaster]):
         Returns:
             True if application exists
         """
-        statement = select(AppsMaster.id).where(AppsMaster.app_code == app_code)
+        statement = select(Apps.id).where(Apps.app_code == app_code)
         result = self.session.exec(statement).first()
         return result is not None
     
     def create_app(self, app_code: str, app_name: str, description: Optional[str] = None,
-                   base_url_template: Optional[str] = None) -> AppsMaster:
+                   base_url_template: Optional[str] = None) -> Apps:
         """
         Create a new application with validation
         
@@ -123,7 +123,7 @@ class AppsRepository(BaseRepository[AppsMaster]):
             base_url_template: Optional URL template
             
         Returns:
-            Created AppsMaster instance
+            Created Apps instance
             
         Raises:
             EntityAlreadyExistsError: If app code already exists
@@ -131,7 +131,7 @@ class AppsRepository(BaseRepository[AppsMaster]):
         if self.exists_by_code(app_code):
             raise EntityAlreadyExistsError(f"Application with code '{app_code}' already exists")
         
-        app = AppsMaster(
+        app = Apps(
             app_code=app_code,
             app_name=app_name,
             description=description,
@@ -176,7 +176,7 @@ class AppsRepository(BaseRepository[AppsMaster]):
         self.save(app)
         return True
     
-    def update_app_description(self, app_code: str, description: str) -> Optional[AppsMaster]:
+    def update_app_description(self, app_code: str, description: str) -> Optional[Apps]:
         """
         Update application description
         
@@ -185,7 +185,7 @@ class AppsRepository(BaseRepository[AppsMaster]):
             description: New description
             
         Returns:
-            Updated AppsMaster instance if found, None otherwise
+            Updated Apps instance if found, None otherwise
         """
         app = self.get_by_code(app_code)
         if not app:
@@ -194,17 +194,17 @@ class AppsRepository(BaseRepository[AppsMaster]):
         app.description = description
         return self.save(app)
     
-    def get_apps_with_url_template(self) -> List[AppsMaster]:
+    def get_apps_with_url_template(self) -> List[Apps]:
         """
         Get applications that have URL templates configured
         
         Returns:
-            List of AppsMaster instances with URL templates
+            List of Apps instances with URL templates
         """
-        statement = select(AppsMaster).where(
+        statement = select(Apps).where(
             and_(
-                AppsMaster.base_url_template.isnot(None),
-                AppsMaster.is_active == True
+                Apps.base_url_template.isnot(None),
+                Apps.is_active == True
             )
         )
         result = self.session.exec(statement).all()
@@ -217,12 +217,12 @@ class AppsRepository(BaseRepository[AppsMaster]):
         Returns:
             Dictionary with app statistics
         """
-        total_statement = select(func.count(AppsMaster.id))
-        active_statement = select(func.count(AppsMaster.id)).where(AppsMaster.is_active == True)
-        with_urls_statement = select(func.count(AppsMaster.id)).where(
+        total_statement = select(func.count(Apps.id))
+        active_statement = select(func.count(Apps.id)).where(Apps.is_active == True)
+        with_urls_statement = select(func.count(Apps.id)).where(
             and_(
-                AppsMaster.base_url_template.isnot(None),
-                AppsMaster.is_active == True
+                Apps.base_url_template.isnot(None),
+                Apps.is_active == True
             )
         )
         

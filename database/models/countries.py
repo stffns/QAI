@@ -1,15 +1,15 @@
 """
-Countries Master Model - SQLModel model for countries
+Countries Model - SQLModel model for countries
 """
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 
 if TYPE_CHECKING:
-    from .apps_master import AppsMaster
+    from .apps import Apps
     from .mappings import ApplicationCountryMapping
 
-class CountriesMaster(SQLModel, table=True):
+class Countries(SQLModel, table=True):
     """
     Countries Master table model
     
@@ -37,20 +37,20 @@ class CountriesMaster(SQLModel, table=True):
     app_mappings: List["ApplicationCountryMapping"] = Relationship(back_populates="country")
     
     def __repr__(self) -> str:
-        """String representation of the Countries Master record"""
-        return f"<CountriesMaster(id={self.id}, code='{self.country_code}', name='{self.country_name}', active={self.is_active})>"
+        """String representation of the Countries record"""
+        return f"<Countries(id={self.id}, code='{self.country_code}', name='{self.country_name}', active={self.is_active})>"
     
     def __str__(self) -> str:
         """User-friendly string representation"""
         return f"{self.country_name} ({self.country_code})"
     
     @property
-    def active_apps(self) -> List['AppsMaster']:
+    def active_apps(self) -> List['Apps']:
         """
         Get list of applications actively deployed in this country
         
         Returns:
-            List of AppsMaster objects active in this country
+            List of Apps objects active in this country
         """
         return [
             mapping.application for mapping in self.app_mappings 
@@ -103,7 +103,7 @@ class CountriesMaster(SQLModel, table=True):
                 return mapping.launched_date
         return None
     
-    def get_apps_by_region(self) -> List['AppsMaster']:
+    def get_apps_by_region(self) -> List['Apps']:
         """
         Get applications available in the same region as this country
         
@@ -118,12 +118,12 @@ class CountriesMaster(SQLModel, table=True):
         return self.active_apps
     
     @classmethod
-    def create_sample_data(cls) -> List['CountriesMaster']:
+    def create_sample_data(cls) -> List['Countries']:
         """
         Create sample data for testing and development
         
         Returns:
-            List of sample CountriesMaster instances
+            List of sample Countries instances
         """
         return [
             cls(

@@ -6,8 +6,8 @@ from typing import Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 
 if TYPE_CHECKING:
-    from .apps_master import AppsMaster
-    from .countries import CountriesMaster
+    from .apps import Apps
+    from .countries import Countries
 
 class ApplicationCountryMapping(SQLModel, table=True):
     """
@@ -36,8 +36,8 @@ class ApplicationCountryMapping(SQLModel, table=True):
     updated_at: Optional[datetime] = Field(default=None, description="Last update timestamp")
     
     # Relationships
-    application: "AppsMaster" = Relationship(back_populates="country_mappings")
-    country: "CountriesMaster" = Relationship(back_populates="app_mappings")
+    application: "Apps" = Relationship(back_populates="country_mappings")
+    country: "Countries" = Relationship(back_populates="app_mappings")
     
     def __repr__(self) -> str:
         """String representation of the mapping record"""

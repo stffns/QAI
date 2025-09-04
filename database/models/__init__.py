@@ -10,8 +10,8 @@ from .users import User, AuditLog, UserRole
 # from .rag import RAGDocument, VectorEmbedding
 
 # Database Query Tool Models
-from .apps_master import AppsMaster
-from .countries import CountriesMaster
+from .apps import Apps
+from .countries import Countries
 from .mappings import ApplicationCountryMapping
 
 # Export models for external use

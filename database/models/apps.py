@@ -1,15 +1,15 @@
 """
-Apps Master Model - SQLModel model for applications
+Apps Model - SQLModel model for applications
 """
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 
 if TYPE_CHECKING:
-    from .countries import CountriesMaster
+    from .countries import Countries
     from .mappings import ApplicationCountryMapping
 
-class AppsMaster(SQLModel, table=True):
+class Apps(SQLModel, table=True):
     """
     Applications Master table model
     
@@ -36,20 +36,20 @@ class AppsMaster(SQLModel, table=True):
     country_mappings: List["ApplicationCountryMapping"] = Relationship(back_populates="application")
     
     def __repr__(self) -> str:
-        """String representation of the Apps Master record"""
-        return f"<AppsMaster(id={self.id}, code='{self.app_code}', name='{self.app_name}', active={self.is_active})>"
+        """String representation of the Apps record"""
+        return f"<Apps(id={self.id}, code='{self.app_code}', name='{self.app_name}', active={self.is_active})>"
     
     def __str__(self) -> str:
         """User-friendly string representation"""
         return f"{self.app_name} ({self.app_code})"
     
     @property
-    def active_countries(self) -> List['CountriesMaster']:
+    def active_countries(self) -> List['Countries']:
         """
         Get list of countries where this application is actively deployed
         
         Returns:
-            List of CountriesMaster objects where this app is active
+            List of Countries objects where this app is active
         """
         return [
             mapping.country for mapping in self.country_mappings 
@@ -103,12 +103,12 @@ class AppsMaster(SQLModel, table=True):
         return None
     
     @classmethod
-    def create_sample_data(cls) -> List['AppsMaster']:
+    def create_sample_data(cls) -> List['Apps']:
         """
         Create sample data for testing and development
         
         Returns:
-            List of sample AppsMaster instances
+            List of sample Apps instances
         """
         return [
             cls(
