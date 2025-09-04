@@ -14,6 +14,11 @@ interface:
   terminal:
     enable_markdown: true
     show_tool_calls: true
+    streaming:
+      enabled: true
+      show_cursor: true
+      cursor_style: "⚡"
+      typing_delay: 0.02
 logging:
   enable_file_logging: true
   level: INFO
@@ -22,6 +27,11 @@ model:
   id: gpt-5-mini
   provider: openai
   temperature: 1.0
+  stream: true
+  stream_config:
+    enabled: true
+    chunk_delay: 0.01  # Delay between chunks in seconds for smooth display
+    show_thinking: true  # Show reasoning process in real-time
 tools:
   enabled: true
   tools:

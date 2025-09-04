@@ -99,7 +99,7 @@ class ModelConfig(BaseModel):
         description="Model identifier/name"
     )
     api_key: Optional[str] = Field(
-        default=os.getenv("MODEL_API_KEY"),
+        default=os.getenv("MODEL_API_KEY") or os.getenv("OPENAI_API_KEY"),
         description="API key for the model provider"
     )
     
@@ -163,6 +163,21 @@ class ModelConfig(BaseModel):
     response_format: Optional[str] = Field(
         default=os.getenv("MODEL_RESPONSE_FORMAT"),
         description="Response format (json, text, etc.)"
+    )
+    
+    # Streaming configuration
+    stream: bool = Field(
+        default=os.getenv("MODEL_STREAM", "true").lower() == "true",
+        description="Enable streaming responses for real-time output"
+    )
+    stream_config: Optional[Dict[str, Any]] = Field(
+        default_factory=lambda: {
+            "enabled": True,
+            "chunk_delay": 0.01,
+            "show_thinking": True,
+            "buffer_size": 1024
+        },
+        description="Advanced streaming configuration options"
     )
 
     @field_validator('provider')

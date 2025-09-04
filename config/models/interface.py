@@ -19,9 +19,17 @@ class InterfaceConfig(BaseModel):
             "show_tool_calls": True,
             "enable_markdown": True,
             "max_history": 100,
-            "color_scheme": "dark"
+            "color_scheme": "dark",
+            "streaming": {
+                "enabled": True,
+                "show_cursor": True,
+                "cursor_style": "⚡",
+                "typing_delay": 0.02,
+                "chunk_buffer_size": 1024,
+                "show_thinking_indicator": True
+            }
         },
-        description="Terminal interface settings"
+        description="Terminal interface settings with streaming support"
     )
     playground: Dict[str, Any] = Field(
         default_factory=lambda: {
@@ -42,7 +50,7 @@ class InterfaceConfig(BaseModel):
         description="API server settings"
     )
 
-    model_config = ConfigDict(case_sensitive=False)
+    model_config = ConfigDict(extra='allow')
 
 
 class AppEnvironmentConfig(BaseModel):
@@ -94,4 +102,4 @@ class AppEnvironmentConfig(BaseModel):
                 Path(getattr(self, attr)).mkdir(parents=True, exist_ok=True)
         return self
 
-    model_config = ConfigDict(case_sensitive=False)
+    model_config = ConfigDict(extra='allow')

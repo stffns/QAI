@@ -7,7 +7,7 @@ Mantiene separación total del framework Agno siguiendo principios SOLID.
 
 import asyncio
 from datetime import datetime
-from typing import Optional, Dict, Set, Any, Protocol, List, Literal
+from typing import Optional, Dict, Set, Any, Protocol, List, Literal, AsyncGenerator
 import uuid
 
 try:
@@ -327,6 +327,78 @@ class WebSocketManager:
             self.stats['messages_failed'] += 1
             
             self.logger.error("Error processing chat message", extra={
+                'session_id': session_id,
+                'user_id': user_id,
+                'error': str(e),
+                'message_preview': message[:100]
+            })
+            
+            # Re-raise to be handled by caller
+            raise
+    
+    async def process_chat_message_stream(
+        self,
+        message: str,
+        session_id: str,
+        user_id: str,
+        metadata: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Process chat message through QA Agent with streaming support.
+        
+        Args:
+            message: User message content
+            session_id: Session identifier
+            user_id: User identifier
+            metadata: Optional message metadata
+            
+        Yields:
+            str: Response chunks as they are generated
+            
+        Raises:
+            Exception: If processing fails
+        """
+        try:
+            with LogExecutionTime("Chat message streaming processing", "WebSocketManager"):
+                
+                # Check if QA Agent supports streaming processing
+                if hasattr(self.qa_agent, 'process_message_stream') and callable(getattr(self.qa_agent, 'process_message_stream')):
+                    async for chunk in self.qa_agent.process_message_stream(  # type: ignore
+                        message=message,
+                        session_id=session_id,
+                        user_id=user_id,
+                        metadata=metadata
+                    ):
+                        yield chunk
+                else:
+                    # Fallback to non-streaming method
+                    response = await self.process_chat_message(message, session_id, user_id, metadata)
+                    # Simulate streaming by chunking the response
+                    chunk_size = 30
+                    for i in range(0, len(response), chunk_size):
+                        chunk = response[i:i + chunk_size]
+                        yield chunk
+                        await asyncio.sleep(0.03)  # Small delay for streaming effect
+                
+                # Update stats
+                self.stats['messages_processed'] += 1
+                
+                # Update connection activity
+                for conn_info in self.connections.values():
+                    if conn_info.session_id == session_id:
+                        conn_info.update_activity()
+                        break
+                
+                self.logger.info("Chat message processed successfully (streaming)", extra={
+                    'session_id': session_id,
+                    'user_id': user_id,
+                    'message_length': len(message)
+                })
+                
+        except Exception as e:
+            self.stats['messages_failed'] += 1
+            
+            self.logger.error("Error processing chat message (streaming)", extra={
                 'session_id': session_id,
                 'user_id': user_id,
                 'error': str(e),

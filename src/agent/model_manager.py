@@ -86,13 +86,13 @@ class ModelManager:
 
     def _build_openai_chat(self, config: ModelConfig) -> Any:
         """
-        Build OpenAIChat instance from Pydantic configuration
+        Build OpenAIChat instance from Pydantic configuration with streaming support
 
         Args:
             config: Validated ModelConfig instance
 
         Returns:
-            Configured OpenAIChat instance
+            Configured OpenAIChat instance with streaming capabilities
         """
         # Get only the fields supported by OpenAIChat
         allowed_fields = {
@@ -106,6 +106,8 @@ class ModelManager:
             "timeout",
             "seed",
             "response_format",
+            # Note: 'stream' is not passed to OpenAIChat constructor
+            # Streaming is handled at the Agent level
         }
 
         # Convert to dict and filter allowed fields

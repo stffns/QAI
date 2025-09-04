@@ -26,6 +26,8 @@ from .chat_interface import ChatInterface
 from .model_manager import ModelManager
 from .storage_manager import StorageManager
 from .tools_manager import ToolsManager
+from .agent_builder import AgentBuilder
+from .error_recovery import global_recovery_manager, with_recovery, RecoveryConfig, RecoveryStrategy
 
 # Configure Loguru logging
 try:
@@ -421,6 +423,10 @@ class QAAgent:
             AgentCreationError: If agent creation fails
         """
         try:
+            # Get streaming configuration from model config
+            model_config = self.config.get_model_config()
+            stream_enabled = model_config.get("stream", False)
+            
             agent = Agent(
                 model=model,
                 instructions=instructions,
@@ -429,12 +435,14 @@ class QAAgent:
                 show_tool_calls=interface_config.get("show_tool_calls", True),
                 markdown=interface_config.get("enable_markdown", True),
                 add_history_to_messages=storage is not None,
+                stream=stream_enabled,  # Enable streaming if configured
             )
 
             logger.info("Agent instance created successfully")
             logger.debug(
                 f"Agent configuration: show_tool_calls={agent.show_tool_calls}, "
-                f"markdown={agent.markdown}, memory_enabled={storage is not None}"
+                f"markdown={agent.markdown}, memory_enabled={storage is not None}, "
+                f"stream_enabled={stream_enabled}"
             )
 
             return agent
@@ -443,6 +451,57 @@ class QAAgent:
             raise AgentCreationError(
                 f"Failed to create Agent instance: {str(e)}"
             ) from e
+
+    @classmethod
+    def create_with_builder(cls, config: ConfigValidator | None = None) -> "QAAgent":
+        """
+        Create QA Agent using the Builder pattern (recommended for complex configurations)
+        
+        Args:
+            config: Configuration object
+            
+        Returns:
+            QAAgent: Configured QA Agent instance
+            
+        Example:
+            qa_agent = QAAgent.create_with_builder(config)
+        """
+        config = config or get_settings()
+        
+        with LogExecutionTime("QA Agent creation with Builder", "QAAgent"):
+            logger.info("Creating QA Agent using Builder pattern...")
+            
+            try:
+                # Use Builder pattern for enhanced configuration
+                builder = AgentBuilder(config)
+                agent_instance = (builder
+                                .auto_configure()
+                                .validate()
+                                .build())
+                
+                # Create QA Agent wrapper
+                qa_agent = cls.__new__(cls)
+                qa_agent.config = config
+                qa_agent.agent = agent_instance
+                
+                # Initialize managers for info purposes (they were used by builder)
+                qa_agent.model_manager = builder.model_manager
+                qa_agent.tools_manager = builder.tools_manager  
+                qa_agent.storage_manager = builder.storage_manager
+                
+                logger.success("QA Agent created successfully using Builder pattern")
+                
+                # Log completion event
+                log_agent_event(
+                    "builder_creation_completed",
+                    builder.get_build_info()
+                )
+                
+                return qa_agent
+                
+            except Exception as e:
+                logger.error(f"Failed to create QA Agent with Builder: {e}")
+                raise AgentCreationError(f"Builder creation failed: {e}") from e
 
     def setup_agent(self) -> None:
         """

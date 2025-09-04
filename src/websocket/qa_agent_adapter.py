@@ -9,7 +9,8 @@ import sys
 import os
 import importlib.util
 import traceback
-from typing import Optional, Dict, Any, Union
+import asyncio
+from typing import Optional, Dict, Any, Union, AsyncGenerator
 from pathlib import Path
 
 # Configure logging for detailed debugging
@@ -517,6 +518,81 @@ class QAAgentAdapter:
             logger.error(error_msg)
             logger.error(f"📍 Error trace:\n{traceback.format_exc()}")
             return error_msg
+    
+    async def process_message_stream(
+        self, 
+        message: str,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Process message with streaming support - yields chunks as they arrive
+        
+        Args:
+            message: User message to process
+            session_id: Session identifier
+            user_id: User identifier (overrides adapter user_id if provided)
+            metadata: Additional message metadata
+            
+        Yields:
+            Response chunks as they are generated
+        """
+        if not self.is_initialized or self.agent is None:
+            error_msg = f"❌ QA Agent not available"
+            if self.initialization_error:
+                error_msg += f": {self.initialization_error}"
+            yield error_msg
+            return
+        
+        try:
+            # Log context information
+            context_info = []
+            if session_id:
+                context_info.append(f"session:{session_id}")
+            if user_id:
+                context_info.append(f"user:{user_id}")
+            if metadata:
+                context_info.append(f"metadata:{len(metadata)} fields")
+                
+            logger.info(f"🔄 Processing STREAMING message with context: {', '.join(context_info)}")
+            logger.info(f"💬 Message: {message[:100]}...")
+            
+            # Check if agent supports streaming
+            if hasattr(self.agent, 'stream') and callable(getattr(self.agent, 'stream')):
+                # Use native streaming if available
+                logger.info("📡 Using native agent streaming")
+                async for chunk in self.agent.stream(message):
+                    if chunk:
+                        yield str(chunk)
+                        await asyncio.sleep(0.01)  # Small delay for smooth streaming
+            else:
+                # Fallback: simulate streaming by chunking response
+                logger.info("📡 Using simulated streaming (chunking response)")
+                response = self.agent.run(message)
+                
+                # Extract response content
+                if hasattr(response, 'content') and response.content:
+                    content = str(response.content)
+                elif hasattr(response, 'text') and response.text:
+                    content = str(response.text)
+                else:
+                    content = str(response) if response else "No response generated"
+                
+                # Send in chunks
+                chunk_size = 50  # Characters per chunk
+                for i in range(0, len(content), chunk_size):
+                    chunk = content[i:i + chunk_size]
+                    yield chunk
+                    await asyncio.sleep(0.05)  # Delay between chunks for streaming effect
+                    
+            logger.info("✅ Streaming message processed successfully")
+                
+        except Exception as e:
+            error_msg = f"❌ Error processing streaming message: {e}"
+            logger.error(error_msg)
+            logger.error(f"📍 Error trace:\n{traceback.format_exc()}")
+            yield error_msg
     
     def get_status(self) -> Dict[str, Any]:
         """Get detailed status of the adapter"""

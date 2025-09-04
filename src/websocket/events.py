@@ -31,6 +31,9 @@ class MessageType(str, Enum):
     """Tipos de mensajes soportados"""
     CHAT_MESSAGE = "chat_message"
     AGENT_RESPONSE = "agent_response"
+    AGENT_RESPONSE_STREAM_START = "agent_response_stream_start"
+    AGENT_RESPONSE_STREAM_CHUNK = "agent_response_stream_chunk"
+    AGENT_RESPONSE_STREAM_END = "agent_response_stream_end"
     SYSTEM_EVENT = "system_event"
     ERROR_EVENT = "error_event"
     CONNECTION_EVENT = "connection_event"
@@ -65,6 +68,33 @@ class AgentResponsePayload(BasePayload):
     message_type: Literal["agent_response"] = "agent_response"
     content: str = Field(..., min_length=1)
     response_type: str = Field(default="text")  # text, markdown, json, etc.
+    tools_used: Optional[List[str]] = None
+    execution_time: Optional[float] = None
+    confidence: Optional[float] = Field(None, ge=0.0, le=1.0)
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class AgentResponseStreamStartPayload(BasePayload):
+    """Payload para inicio de respuesta streaming del agente"""
+    message_type: Literal["agent_response_stream_start"] = "agent_response_stream_start"
+    response_type: str = Field(default="text")
+    estimated_length: Optional[int] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class AgentResponseStreamChunkPayload(BasePayload):
+    """Payload para chunks de respuesta streaming del agente"""
+    message_type: Literal["agent_response_stream_chunk"] = "agent_response_stream_chunk"
+    chunk: str = Field(..., description="Parte del contenido de la respuesta")
+    chunk_index: int = Field(..., ge=0, description="Índice del chunk (0-based)")
+    is_complete: bool = Field(default=False, description="Si este es el último chunk")
+
+
+class AgentResponseStreamEndPayload(BasePayload):
+    """Payload para fin de respuesta streaming del agente"""
+    message_type: Literal["agent_response_stream_end"] = "agent_response_stream_end"
+    total_chunks: int = Field(..., ge=0)
+    full_content: str = Field(..., description="Contenido completo para verificación")
     tools_used: Optional[List[str]] = None
     execution_time: Optional[float] = None
     confidence: Optional[float] = Field(None, ge=0.0, le=1.0)
@@ -111,6 +141,9 @@ class HealthCheckPayload(BasePayload):
 WebSocketPayload = Union[
     ChatMessagePayload,
     AgentResponsePayload,
+    AgentResponseStreamStartPayload,
+    AgentResponseStreamChunkPayload,
+    AgentResponseStreamEndPayload,
     SystemEventPayload,
     ErrorEventPayload,
     ConnectionEventPayload,
@@ -274,6 +307,81 @@ class WebSocketEnvelopeFactory:
         )
         return WebSocketEnvelope(
             type=MessageType.AGENT_RESPONSE,
+            payload=payload,
+            session_id=session_id,
+            user_id=user_id,
+            correlation_id=correlation_id
+        )
+    
+    @staticmethod
+    def create_agent_response_stream_start(
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        response_type: str = "text",
+        estimated_length: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> WebSocketEnvelope:
+        """Crear envelope para inicio de respuesta streaming"""
+        payload = AgentResponseStreamStartPayload(
+            response_type=response_type,
+            estimated_length=estimated_length,
+            metadata=metadata
+        )
+        return WebSocketEnvelope(
+            type=MessageType.AGENT_RESPONSE_STREAM_START,
+            payload=payload,
+            session_id=session_id,
+            user_id=user_id,
+            correlation_id=correlation_id
+        )
+    
+    @staticmethod
+    def create_agent_response_stream_chunk(
+        chunk: str,
+        chunk_index: int,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        is_complete: bool = False
+    ) -> WebSocketEnvelope:
+        """Crear envelope para chunk de respuesta streaming"""
+        payload = AgentResponseStreamChunkPayload(
+            chunk=chunk,
+            chunk_index=chunk_index,
+            is_complete=is_complete
+        )
+        return WebSocketEnvelope(
+            type=MessageType.AGENT_RESPONSE_STREAM_CHUNK,
+            payload=payload,
+            session_id=session_id,
+            user_id=user_id,
+            correlation_id=correlation_id
+        )
+    
+    @staticmethod
+    def create_agent_response_stream_end(
+        total_chunks: int,
+        full_content: str,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        tools_used: Optional[List[str]] = None,
+        execution_time: Optional[float] = None,
+        confidence: Optional[float] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> WebSocketEnvelope:
+        """Crear envelope para fin de respuesta streaming"""
+        payload = AgentResponseStreamEndPayload(
+            total_chunks=total_chunks,
+            full_content=full_content,
+            tools_used=tools_used,
+            execution_time=execution_time,
+            confidence=confidence,
+            metadata=metadata
+        )
+        return WebSocketEnvelope(
+            type=MessageType.AGENT_RESPONSE_STREAM_END,
             payload=payload,
             session_id=session_id,
             user_id=user_id,

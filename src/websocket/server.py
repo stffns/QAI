@@ -412,9 +412,9 @@ class WebSocketServer:
         user_id: str
     ) -> None:
         """
-        Handle chat message from client.
+        Handle chat message from client with streaming support.
         
-        Processes the message through QAAgent and sends response back.
+        Processes the message through QAAgent and sends response back in chunks.
         """
         try:
             with LogExecutionTime(f"Chat message processing", "WebSocketServer"):
@@ -429,25 +429,79 @@ class WebSocketServer:
                 if not isinstance(chat_payload, ChatMessagePayload):
                     raise ValueError("Expected ChatMessagePayload")
                 
-                # Process message through QA Agent
-                response = await self.manager.process_chat_message(
-                    message=chat_payload.content,
-                    session_id=session_id,
-                    user_id=user_id,
-                    metadata=chat_payload.metadata
-                )
-                
-                # Create and send response envelope
-                response_envelope = WebSocketEnvelopeFactory.create_agent_response(
-                    content=response,
-                    session_id=session_id,
-                    user_id=user_id,
-                    correlation_id=chat_envelope.id
-                )
-                
-                await self._send_event(websocket, response_envelope)
-                
-                self.logger.info(f"Processed chat message for session {session_id}")
+                # Check if streaming is available and process accordingly
+                if hasattr(self.manager, 'process_chat_message_stream') and callable(getattr(self.manager, 'process_chat_message_stream')):
+                    # Use streaming version
+                    self.logger.info(f"📡 Processing chat message with streaming for session {session_id}")
+                    
+                    # Send stream start
+                    start_envelope = WebSocketEnvelopeFactory.create_agent_response_stream_start(
+                        session_id=session_id,
+                        user_id=user_id,
+                        correlation_id=chat_envelope.id,
+                        response_type="text"
+                    )
+                    await self._send_event(websocket, start_envelope)
+                    
+                    # Process and send chunks
+                    full_response = ""
+                    chunk_index = 0
+                    chunk_count = 0
+                    
+                    async for chunk in self.manager.process_chat_message_stream(
+                        message=chat_payload.content,
+                        session_id=session_id,
+                        user_id=user_id,
+                        metadata=chat_payload.metadata
+                    ):
+                        if chunk.strip():  # Only send non-empty chunks
+                            chunk_envelope = WebSocketEnvelopeFactory.create_agent_response_stream_chunk(
+                                chunk=chunk,
+                                chunk_index=chunk_index,
+                                session_id=session_id,
+                                user_id=user_id,
+                                correlation_id=chat_envelope.id,
+                                is_complete=False
+                            )
+                            await self._send_event(websocket, chunk_envelope)
+                            full_response += chunk
+                            chunk_index += 1
+                            chunk_count += 1
+                    
+                    # Send stream end
+                    end_envelope = WebSocketEnvelopeFactory.create_agent_response_stream_end(
+                        total_chunks=chunk_count,
+                        full_content=full_response,
+                        session_id=session_id,
+                        user_id=user_id,
+                        correlation_id=chat_envelope.id
+                    )
+                    await self._send_event(websocket, end_envelope)
+                    
+                    self.logger.info(f"✅ Streaming chat message completed for session {session_id} ({chunk_count} chunks)")
+                else:
+                    # Fallback to non-streaming version
+                    self.logger.info(f"📝 Processing chat message (non-streaming) for session {session_id}")
+                    
+                    # Process message through QA Agent
+                    response = await self.manager.process_chat_message(
+                        message=chat_payload.content,
+                        session_id=session_id,
+                        user_id=user_id,
+                        metadata=chat_payload.metadata
+                    )
+                    
+                    # Create and send response envelope
+                    response_envelope = WebSocketEnvelopeFactory.create_agent_response(
+                        content=response,
+                        session_id=session_id,
+                        user_id=user_id,
+                        correlation_id=chat_envelope.id
+                    )
+                    
+                    await self._send_event(websocket, response_envelope)
+                    
+                    self.logger.info(f"Processed chat message for session {session_id}")
                 
         except Exception as e:
             self.logger.error(f"Error handling chat message: {e}")
