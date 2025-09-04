@@ -185,22 +185,19 @@ class QAAgentAdapter:
             import config
             logger.info(f"📦 Config module imported from: {config.__file__}")
             
-            from config import get_config
-            config = get_config()
+            from config import get_settings
+            config = get_settings()
             
-            # Validate configuration (same as run_qa_agent.py)
-            if hasattr(config, 'validate_config_legacy'):
-                # Use legacy method that returns boolean
-                if not config.validate_config_legacy():
-                    raise ValueError("Invalid configuration - validation failed")
-            elif hasattr(config, 'validate_config'):
-                # Try modern method (may raise exception)
-                try:
-                    config.validate_config()
-                except Exception as e:
-                    raise ValueError(f"Configuration validation error: {e}")
-            else:
-                raise ValueError("Configuration object has no validation method")
+            # Validate configuration using modern Pydantic validation
+            try:
+                # Modern settings object is self-validating via Pydantic
+                # Just verify it's accessible
+                _ = config.model
+                _ = config.tools
+                _ = config.database
+                logger.info("✅ Configuration validation successful")
+            except Exception as e:
+                raise ValueError(f"Configuration validation error: {e}")
             
             # Restore original directory
             os.chdir(original_dir)
@@ -254,9 +251,9 @@ class QAAgentAdapter:
                     logger.info(f"🗑️  Cleared module from cache: {module_name}")
             
             # Import manager classes directly (like run_qa_agent.py does)
-            from model_manager import ModelManager
-            from tools_manager import ToolsManager
-            from storage_manager import StorageManager
+            from src.agent.model_manager import ModelManager
+            from src.agent.tools_manager import ToolsManager
+            from src.agent.storage_manager import StorageManager
             
             logger.info("✅ All manager classes imported successfully")
             
@@ -321,7 +318,12 @@ class QAAgentAdapter:
         try:
             interface_config = config.get_interface_config()
             instructions = config.get_agent_instructions()
-            reasoning_config = config.get_reasoning_config()
+            
+            # Build reasoning config manually like run_qa_agent.py does
+            reasoning_config = {"enabled": False, "type": "agent"}  # Default reasoning config
+            if self.enable_reasoning:
+                reasoning_config["enabled"] = True
+                reasoning_config["type"] = "agent"  # Default to agent reasoning
             
             return interface_config, instructions, reasoning_config
             

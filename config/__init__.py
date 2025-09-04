@@ -14,7 +14,6 @@ The configuration system follows a modular approach with specialized managers:
 - **models/logging.py**: Logging system configuration
 - **models/websocket.py**: WebSocket server configuration (optional)
 - **settings.py**: Main Pydantic Settings implementation with YAML integration
-- **legacy.py**: Backward compatibility layer for migration
 
 ### Configuration Priority:
 1. Environment variables (highest priority)
@@ -32,16 +31,6 @@ settings = get_settings()
 model_config = settings.model
 db_config = settings.database
 tools_config = settings.tools
-```
-
-### Legacy Compatibility:
-```python
-from config import get_config  
-config = get_config()
-
-# Legacy access patterns still work
-model_id = config.model.id
-db_url = config.database.url
 ```
 
 ### Environment Variable Examples:
@@ -105,9 +94,6 @@ Common validation errors and solutions are documented in the individual model cl
 
 # Primary interfaces for modern usage
 from .settings import Settings, get_settings, reset_settings
-
-# Legacy compatibility layer for gradual migration
-from .legacy import ConfigManager, get_config
 
 # ============================================================================
 # Core Configuration Models
@@ -259,10 +245,6 @@ __all__ = [
     "Settings",
     "get_settings", 
     "reset_settings",
-    
-    # Legacy compatibility
-    "ConfigManager",
-    "get_config",
     
     # Core models
     "ModelConfig",

@@ -619,15 +619,15 @@ if __name__ == "__main__":
             # Import from project root config module 
             import sys, os
             sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-            from config import get_config
+            from config import get_settings
         except ImportError:
             # Fallback configuration if project config not available
             print("Warning: Could not import project config, using default WebSocket config")
-            get_config = None
+            get_settings = None
         
         # Load configuration
-        if get_config:
-            config = get_config()
+        if get_settings:
+            settings = get_settings()
             # Extract WebSocket config if available, otherwise use defaults
             ws_config = WebSocketConfig(
                 server=ServerConfig(host='127.0.0.1', port=8765),
