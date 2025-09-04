@@ -5,9 +5,14 @@ SQLModel implementations with type safety and validation
 
 # Import all models here for easy access
 from .users import User, AuditLog, UserRole
-# from .applications import Application, Country, Environment
+# from .applications import Application, Country, Environment  
 # from .testing import TestRun, PerformanceResult, TestType
 # from .rag import RAGDocument, VectorEmbedding
+
+# Database Query Tool Models
+from .apps_master import AppsMaster
+from .countries import CountriesMaster
+from .mappings import ApplicationCountryMapping
 
 # Export models for external use
 __all__ = [
