@@ -70,7 +70,12 @@ class Settings(BaseSettings):
         self._ensure_directories()
     
     def _update_from_yaml(self, yaml_config: Dict[str, Any]) -> None:
-        """Update configuration from YAML data - Environment variables have priority"""
+        """Update configuration from YAML data - Environment variables have priority.
+
+        Performs a deep merge: for nested dicts, merge recursively. For scalars,
+        keep current (ENV) value when it differs from the default; otherwise take YAML.
+        Lists are replaced by YAML entirely if provided.
+        """
         section_mappings = {
             'model': 'model',
             'database': 'database', 
@@ -85,33 +90,14 @@ class Settings(BaseSettings):
                 section_data = yaml_config[yaml_section]
                 if isinstance(section_data, dict):
                     current_section = getattr(self, attr_name)
-                    current_data = current_section.model_dump()
-                    
-                    # Environment variables have priority over YAML
-                    # Only use YAML values if environment variable is not set (is default)
-                    updated_data = {}
                     section_class = type(current_section)
-                    field_defaults = self._get_field_defaults(section_class)
-                    
-                    for key, yaml_value in section_data.items():
-                        current_value = current_data.get(key)
-                        default_value = field_defaults.get(key)
-                        
-                        # If current value is different from default, it came from env var - keep it
-                        # Otherwise, use YAML value
-                        if current_value != default_value:
-                            updated_data[key] = current_value  # Keep env var value
-                        else:
-                            updated_data[key] = yaml_value     # Use YAML value
-                    
-                    # Add any fields not in YAML but present in current config
-                    for key, value in current_data.items():
-                        if key not in updated_data:
-                            updated_data[key] = value
-                    
-                    # Create new instance with updated data
                     try:
-                        new_section = section_class(**updated_data)
+                        merged = self._merge_with_env_priority(
+                            current_section.model_dump(),
+                            section_data,
+                            self._get_field_defaults(section_class)
+                        )
+                        new_section = section_class(**merged)
                         setattr(self, attr_name, new_section)
                     except Exception as e:
                         print(f"⚠️  Error updating {yaml_section} from YAML: {e}")
@@ -130,6 +116,34 @@ class Settings(BaseSettings):
             else:
                 defaults[field_name] = None
         return defaults
+
+    def _merge_with_env_priority(self, current: Dict[str, Any], yaml_vals: Dict[str, Any], defaults: Dict[str, Any]) -> Dict[str, Any]:
+        """Deep-merge dicts keeping ENV-overridden values.
+
+        - If current[key] != defaults[key], keep current (assumed ENV override).
+        - Else, use yaml value.
+        - For nested dicts, recurse with nested defaults.
+        - For lists provided in YAML, replace entirely.
+        """
+        result: Dict[str, Any] = dict(current)
+        for key, yaml_value in yaml_vals.items():
+            cur_value = current.get(key)
+            def_value = defaults.get(key)
+
+            # If ENV override (current != default), keep current
+            if cur_value != def_value and cur_value is not None and not isinstance(cur_value, dict):
+                result[key] = cur_value
+                continue
+
+            # Recurse into dicts
+            if isinstance(yaml_value, dict) and isinstance(cur_value, dict):
+                nested_defaults = def_value if isinstance(def_value, dict) else {}
+                result[key] = self._merge_with_env_priority(cur_value, yaml_value, nested_defaults)
+            else:
+                # Lists or scalars: prefer YAML when present
+                result[key] = yaml_value
+
+        return result
     
     def _load_yaml_config(self) -> Dict[str, Any]:
         """Load configuration from YAML file"""

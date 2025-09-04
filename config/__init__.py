@@ -311,7 +311,12 @@ if _WEBSOCKET_AVAILABLE:
 
 # Validate configuration on import if not in test environment
 import os
-if os.getenv("ENVIRONMENT") != "test" and os.getenv("SKIP_CONFIG_VALIDATION") != "true":
+_validate_on_import = os.getenv("QA_CONFIG_VALIDATE_ON_IMPORT", "true").lower() == "true"
+if (
+    os.getenv("ENVIRONMENT") != "test"
+    and os.getenv("SKIP_CONFIG_VALIDATION") != "true"
+    and _validate_on_import
+):
     try:
         # Quick validation check
         validate_current_config()

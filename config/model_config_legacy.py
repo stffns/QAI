@@ -6,20 +6,10 @@ Provides specialized configuration for AI model providers
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
-from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
 
-from .models import ModelConfig
-
-
-class ModelProvider(str, Enum):
-    """Supported AI model providers"""
-    OPENAI = "openai"
-    AZURE = "azure"
-    DEEPSEEK = "deepseek"
-    ANTHROPIC = "anthropic"  # Future support
-    GOOGLE = "google"       # Future support
+from .models import ModelConfig, ModelProvider
 
 
 class OpenAIModelConfig(ModelConfig):

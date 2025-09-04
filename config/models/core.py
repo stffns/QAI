@@ -30,10 +30,6 @@ from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 
-# Ensure .env is loaded at import time
-from dotenv import load_dotenv
-load_dotenv()
-
 
 class ModelProvider(str, Enum):
     """
@@ -99,7 +95,7 @@ class ModelConfig(BaseModel):
         description="AI model provider (openai, azure, deepseek, etc.)"
     )
     id: str = Field(
-        default=os.getenv("MODEL_ID", os.getenv("AGENT_DEFAULT_MODEL", "gpt-3.5-turbo")), 
+        default=os.getenv("MODEL_ID", os.getenv("AGENT_DEFAULT_MODEL", "gpt-5-mini")), 
         description="Model identifier/name"
     )
     api_key: Optional[str] = Field(
@@ -257,7 +253,6 @@ class ModelConfig(BaseModel):
         return base_config
 
     model_config = ConfigDict(
-        str_to_lower=True,
         extra='allow',
         validate_assignment=True
     )
@@ -361,10 +356,19 @@ class DatabaseConfig(BaseModel):
         if not v:
             raise ValueError("Database URL cannot be empty")
         
-        # Basic URL validation
-        valid_schemes = ['sqlite', 'postgresql', 'mysql', 'oracle']
-        if not any(v.startswith(f"{scheme}://") for scheme in valid_schemes):
-            raise ValueError(f"Invalid database URL scheme. Must be one of: {valid_schemes}")
+        # Basic URL validation with support for SQLAlchemy dialect+driver
+        # Examples: postgresql://, postgresql+psycopg://, sqlite:///, sqlite+pysqlite://, mysql://
+        allowed_prefixes = (
+            "sqlite:///", "sqlite://", "sqlite+pysqlite://",
+            "postgresql://", "postgresql+psycopg://", "postgresql+psycopg2://",
+            "mysql://", "mysql+pymysql://", "mysql+mysqlconnector://",
+            "oracle://", "oracle+cx_oracle://"
+        )
+        if not v.startswith(allowed_prefixes):
+            raise ValueError(
+                "Invalid database URL scheme. Must be a supported SQLAlchemy URL (e.g., "
+                "sqlite:///path.db, postgresql://..., mysql://...)"
+            )
         
         return v
 
@@ -375,8 +379,10 @@ class DatabaseConfig(BaseModel):
             # Extract path from SQLite URL
             db_path = self.url.replace('sqlite:///', '')
             db_dir = Path(db_path).parent
-            if db_dir != Path('.'):  # Don't create directory for current dir
-                db_dir.mkdir(parents=True, exist_ok=True)
+            # Avoid side effects during tests
+            if os.getenv("ENVIRONMENT") != "test":
+                if db_dir != Path('.'):  # Don't create directory for current dir
+                    db_dir.mkdir(parents=True, exist_ok=True)
         
         return self
 
@@ -522,7 +528,10 @@ class ToolsConfig(BaseModel):
         description="Enable safety restrictions for tool execution"
     )
     allowed_domains: List[str] = Field(
-        default_factory=lambda: ["*"],  # Allow all domains by default
+        default_factory=lambda: [
+            "localhost",
+            "127.0.0.1"
+        ],
         description="Allowed domains for web-based tools"
     )
     blocked_commands: List[str] = Field(

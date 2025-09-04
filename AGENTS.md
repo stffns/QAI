@@ -1,0 +1,20 @@
+# AGENTS.md — QA Intelligence repo quick guide
+- Run: `make run ARGS="--user-id me@qai.com --reasoning off"` or `python run_qa_agent.py`; teams: `make run-teams`.
+- Build/lint/type/test: `make qa-check` (format+lint+type+security+tests), `make type-check` (mypy), `make lint` (pylint+ruff), `make format` (black+isort), `make build`.
+- Tests: `make test` (coverage) or `make test-fast`; single test: `pytest tests/test_file.py::TestClass::test_fn -q`; filter: `pytest -k "expr"`; markers: `-m "unit|integration|qa|memory|teams|slow|core|regression"`.
+- Structure: src/agent {qa_agent, model_manager, tools_manager, storage_manager, chat_interface}; src/websocket {server, qa_agent_adapter, security, middleware, events}; database {repositories(unit_of_work, users, exceptions), models}; config {settings, models, legacy}; scripts/*.
+- Config: `config/settings.py` (Pydantic BaseSettings) loads `.env` then `agent_config.yaml` (ENV > YAML > defaults), deep-merges, and ensures data/logs/cache/temp dirs.
+- Data/DB: SQLite by default (`data/qa_intelligence.db`, `data/qa_conversations.db`, `data/qa_intelligence_rag.db`) with Repository + UnitOfWork pattern.
+- Entry/API surfaces: `get_settings()` / `get_config()` (config), `ModelManager.create_model()`, `ToolsManager.load_tools()`, `StorageManager.setup_storage()`, `ChatInterface.start_chat()`.
+- Models/Tools: Agno OpenAIChat; tools include DuckDuckGo, Python, Calculator; Reasoning optional (`agent|model|tools`, e.g. `o3-mini`), disabled by default.
+- Memory: Agno Memory v2 (SQLite) auto-enabled unless `--no-memory`.
+- WebSocket: optional server/adapter layer under `src/websocket/`.
+- Code style: Black (88 cols), isort (profile=black), Ruff (E,W,F,I,B,C4,UP,N,S,T20,SIM,ARG; per-file ignores for scripts/tests), Pylint (88 cols; docstring/name rules relaxed).
+- Types: mypy strict optional, warn_* enabled; tests excluded; ignore_missing_imports for `agno`, `ddgs`, `duckduckgo_search`.
+- Imports: prefer absolute; common fallback with sys.path update when running modules directly (see Copilot guide).
+- Error handling: structured repo exceptions (EntityNotFoundError, InvalidEntityError, DuplicateEntityError, DatabaseConnectionError) and config/agent errors; avoid silent fallbacks.
+- Logging: Loguru via `src/logging_config.py` with `get_logger`, `LogExecutionTime`, `LogStep`; default log file `logs/qa_intelligence.log`.
+- CI/docs: `make ci-*` for CI, `make docs` / `make docs-serve` (MkDocs).
+- Editor/AI rules: See `.github/copilot-instructions.md`; no Cursor/Claude/Windsurf/Cline/Goose rule files present.
+- Env/config: `.env` loaded; API keys via `OPENAI_API_KEY` or `<PROVIDER>_API_KEY`; validate quickly: `python config.py`.
+- Git hooks: `make setup-hooks`; run hooks `pre-commit run --all-files`; conventional commits via Commitizen (pyproject).

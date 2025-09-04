@@ -39,14 +39,11 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from typing import Optional, Dict, Any, Literal
 from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
-
-# Ensure .env is loaded
-from dotenv import load_dotenv
-load_dotenv()
 
 
 class LogLevel:
@@ -287,11 +284,13 @@ class LoggingConfig(BaseModel):
         # Ensure parent directory exists
         log_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Validate path is writable (create empty file if doesn't exist)
-        try:
-            log_path.touch(exist_ok=True)
-        except (OSError, PermissionError) as e:
-            raise ValueError(f"Cannot write to log file {v}: {e}")
+        # Validate path is writable (create empty file if doesn't exist),
+        # but avoid file creation when running tests
+        if os.getenv("ENVIRONMENT") != "test":
+            try:
+                log_path.touch(exist_ok=True)
+            except (OSError, PermissionError) as e:
+                raise ValueError(f"Cannot write to log file {v}: {e}")
         
         return str(log_path)
 
@@ -342,7 +341,7 @@ class LoggingConfig(BaseModel):
         # Console handler
         if self.enable_console_logging:
             console_handler = {
-                "sink": "sys.stdout",
+                "sink": sys.stdout,
                 "level": self.console_level or self.level,
                 "format": self.format,
                 "colorize": True,
@@ -370,7 +369,6 @@ class LoggingConfig(BaseModel):
             json_handler = {
                 "sink": self.json_log_file,
                 "level": self.level,
-                "format": self.json_format,
                 "serialize": True,
                 "rotation": self.max_file_size,
                 "retention": self.backup_count,
@@ -439,7 +437,6 @@ class LoggingConfig(BaseModel):
         }
 
     model_config = ConfigDict(
-        str_to_lower=True,
         extra='allow',
         validate_assignment=True
     )

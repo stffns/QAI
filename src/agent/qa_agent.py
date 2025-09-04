@@ -14,13 +14,13 @@ from agno.models.base import Model
 
 # Use absolute imports - avoid sys.path manipulation
 try:
-    from config import get_config
+    from config import get_settings
 except ImportError:
     # Fallback for development
     import os
 
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-    from config import get_config
+    from config import get_settings
 
 from .chat_interface import ChatInterface
 from .model_manager import ModelManager
@@ -77,6 +77,18 @@ class ConfigValidator(Protocol):
 
     def get_agent_instructions(self) -> Union[str, list[str]]:
         """Get agent instructions"""
+        ...
+
+    def get_model_config(self) -> dict[str, Any]:
+        """Get model configuration"""
+        ...
+
+    def get_database_config(self) -> dict[str, Any]:
+        """Get database configuration"""
+        ...
+
+    def get_tools_config(self) -> dict[str, Any]:
+        """Get tools configuration"""
         ...
 
 
@@ -146,7 +158,7 @@ class QAAgent:
             storage_manager: Storage manager instance (optional)
         """
         with LogStep("QA Agent initialization", "QAAgent"):
-            self.config = config or get_config()
+            self.config = config or get_settings()
             self.agent: Agent | None = None
 
             # Initialize component managers with dependency injection support
