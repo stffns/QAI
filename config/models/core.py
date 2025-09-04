@@ -174,10 +174,16 @@ class ModelConfig(BaseModel):
         default_factory=lambda: {
             "enabled": True,
             "chunk_delay": 0.01,
-            "show_thinking": True,
+            "show_thinking": False,  # Changed default to False for concise responses
             "buffer_size": 1024
         },
         description="Advanced streaming configuration options"
+    )
+    
+    # Response control configuration
+    system_instructions: Optional[str] = Field(
+        default=None,
+        description="System instructions for guiding model behavior"
     )
 
     @field_validator('provider')
@@ -637,6 +643,94 @@ class ToolsConfig(BaseModel):
             raise ValueError(f"Duplicate tool names found: {duplicates}")
         
         return self
+
+    model_config = ConfigDict(
+        str_to_lower=True,
+        extra='allow',
+        validate_assignment=True
+    )
+
+
+class ReasoningConfig(BaseModel):
+    """
+    Configuration for reasoning capabilities and response optimization.
+    
+    This model controls when to use detailed reasoning vs concise responses,
+    helping balance response speed with thoroughness and cost efficiency.
+    """
+    
+    # Core reasoning settings
+    enabled: bool = Field(
+        default=os.getenv("REASONING_ENABLED", "true").lower() == "true",
+        description="Enable reasoning capabilities"
+    )
+    type: str = Field(
+        default=os.getenv("REASONING_TYPE", "agent"),
+        description="Type of reasoning (agent, model, tools)"
+    )
+    
+    # Response control
+    auto_reasoning: bool = Field(
+        default=os.getenv("REASONING_AUTO", "false").lower() == "true",
+        description="Automatically enable reasoning for all queries"
+    )
+    triggers: List[str] = Field(
+        default_factory=lambda: [
+            "explain in detail", "analyze", "complex reasoning", 
+            "step by step", "comprehensive", "elaborate"
+        ],
+        description="Keywords that trigger detailed reasoning"
+    )
+    
+    # Multi-model configuration for cost optimization
+    reasoning_model: Optional[Dict[str, Any]] = Field(
+        default_factory=lambda: {
+            "id": "gpt-5",  # Full model for complex reasoning
+            "temperature": 0.7,
+            "max_tokens": 1500
+        },
+        description="Model configuration specifically for complex reasoning tasks"
+    )
+    
+    simple_model: Optional[Dict[str, Any]] = Field(
+        default_factory=lambda: {
+            "id": "gpt-5-nano",  # Ultra-fast model for simple tasks
+            "temperature": 0.2,
+            "max_tokens": 100,
+            "triggers": [
+                "yes/no questions", "simple greetings", "basic confirmations",
+                "hello", "hi", "thanks", "thank you", "ok", "yes", "no"
+            ]
+        },
+        description="Model configuration for very simple interactions"
+    )
+    
+    # Performance settings
+    concise_mode: bool = Field(
+        default=os.getenv("REASONING_CONCISE", "true").lower() == "true",
+        description="Prioritize concise responses by default"
+    )
+    max_concise_tokens: int = Field(
+        default=int(os.getenv("REASONING_CONCISE_TOKENS", "300")),
+        ge=50,
+        le=1000,
+        description="Maximum tokens for concise responses"
+    )
+    
+    # Cost optimization settings
+    cost_optimization: bool = Field(
+        default=os.getenv("REASONING_COST_OPT", "true").lower() == "true",
+        description="Enable cost optimization through model selection"
+    )
+
+    @field_validator('type')
+    @classmethod
+    def validate_reasoning_type(cls, v: str) -> str:
+        """Validate reasoning type."""
+        valid_types = ["agent", "model", "tools"]
+        if v not in valid_types:
+            raise ValueError(f"Invalid reasoning type: {v}. Must be one of {valid_types}")
+        return v
 
     model_config = ConfigDict(
         str_to_lower=True,

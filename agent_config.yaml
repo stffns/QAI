@@ -26,12 +26,27 @@ logging:
 model:
   id: gpt-5-mini
   provider: openai
-  temperature: 1.0
+  temperature: 1.0  # Required for gpt-5-mini
+  max_completion_tokens: 300
   stream: true
   stream_config:
     enabled: true
-    chunk_delay: 0.01  # Delay between chunks in seconds for smooth display
-    show_thinking: true  # Show reasoning process in real-time
+    chunk_delay: 0.01
+    show_thinking: false
+  models:
+    nano: gpt-5-nano      # For very simple interactions
+    default: gpt-5-mini   # For normal responses  
+    reasoning: gpt-5      # For complex analysis
+  temperatures:
+    nano: 1.0      # Required for gpt-5-nano
+    default: 1.0   # Required for gpt-5-mini
+    reasoning: 0.3 # Adjustable for gpt-5 (focused reasoning)
+  system_instructions: |
+    You are a concise QA Intelligence assistant. Provide direct, focused answers.
+    - Keep responses under 3 sentences when possible
+    - Use bullet points for lists
+    - Avoid unnecessary explanations unless explicitly asked
+    - For complex topics, ask if the user wants more detail
 tools:
   enabled: true
   tools:
@@ -43,5 +58,31 @@ tools:
     name: file_operations
 
 reasoning:
-  enabled: false
+  enabled: true
   type: agent
+  triggers:
+    - "explain in detail"
+    - "analyze"
+    - "complex reasoning"
+    - "step by step"
+    - "comprehensive"
+    - "how does"
+    - "why does"
+    - "compare"
+    - "pros and cons"
+  auto_reasoning: false
+  reasoning_model:
+    id: gpt-5          # Full GPT-5 for complex reasoning
+    temperature: 0.3   # Focused reasoning (adjustable for gpt-5)
+    max_completion_tokens: 1500
+  nano_triggers:
+    - "hello"
+    - "hi"
+    - "thanks"
+    - "ok"
+    - "yes"
+    - "bye"
+    - "thank you"
+    - "no"
+    - "good"
+    - "bye"

@@ -31,6 +31,7 @@ class QAAgentAdapter:
     - Reasoning capabilities (agent, model, tools)
     - Advanced memory features (user memories, agentic memory)
     - Full configuration validation and error handling
+    - Response optimization for concise vs detailed answers
     """
     
     def __init__(self, user_id: str = "websocket_user@qai.com", enable_reasoning: bool = False, enable_memory: bool = True):
@@ -47,6 +48,7 @@ class QAAgentAdapter:
         self.enable_memory = enable_memory
         self.agent = None
         self.config = None
+        self.response_manager = None
         self.is_initialized = False
         self.initialization_error = None
         
@@ -255,6 +257,7 @@ class QAAgentAdapter:
             from src.agent.model_manager import ModelManager
             from src.agent.tools_manager import ToolsManager
             from src.agent.storage_manager import StorageManager
+            from src.agent.response_manager import ResponseManager
             
             logger.info("✅ All manager classes imported successfully")
             
@@ -264,7 +267,8 @@ class QAAgentAdapter:
             return {
                 'ModelManager': ModelManager,
                 'ToolsManager': ToolsManager,
-                'StorageManager': StorageManager
+                'StorageManager': StorageManager,
+                'ResponseManager': ResponseManager
             }
             
         except Exception as e:
@@ -281,6 +285,10 @@ class QAAgentAdapter:
             model_manager = managers['ModelManager'](config)
             tools_manager = managers['ToolsManager'](config)
             storage_manager = managers['StorageManager'](config)
+            response_manager = managers['ResponseManager'](config)
+            
+            # Store response manager for later use
+            self.response_manager = response_manager
             
             return model_manager, tools_manager, storage_manager
             
@@ -434,6 +442,18 @@ class QAAgentAdapter:
         
         try:
             logger.info(f"💬 Processing chat message: {message[:100]}...")
+            
+            # Use Response Manager to analyze the message and determine optimal model
+            if self.response_manager:
+                context = self.response_manager.analyze_message(message)
+                strategy = self.response_manager.get_strategy(context)
+                
+                logger.info(f"🎯 Response strategy: {strategy.name} (model: {context.model}, max_tokens: {context.max_tokens})")
+                
+                # Apply dynamic model configuration if recommended model differs
+                self._apply_dynamic_model_config(context)
+            else:
+                logger.warning("⚠️ Response Manager not available, using default model")
             
             # Use the agent's run method (same as chat_interface.py)
             response = self.agent.run(message)
@@ -607,3 +627,30 @@ class QAAgentAdapter:
                 for name, component in self.components.items()
             }
         }
+    
+    def _apply_dynamic_model_config(self, context: Dict[str, Any]):
+        """
+        Apply dynamic model configuration based on Response Manager analysis
+        
+        Args:
+            context: Analysis context from Response Manager containing model recommendation
+        """
+        try:
+            recommended_model = context.get('model')
+            current_model = getattr(self.agent.model, 'id', None) if hasattr(self.agent, 'model') else None
+            
+            if recommended_model and current_model != recommended_model:
+                logger.info(f"🔄 Switching model: {current_model} → {recommended_model}")
+                
+                # Update agent's model configuration
+                if hasattr(self.agent, 'model') and hasattr(self.agent.model, 'id'):
+                    self.agent.model.id = recommended_model
+                    logger.info(f"✅ Model switched to: {recommended_model}")
+                else:
+                    logger.warning(f"⚠️ Cannot switch model - agent.model not accessible")
+            else:
+                logger.debug(f"🔧 Using current model: {current_model}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error applying dynamic model config: {e}")
+            # Don't fail the chat - continue with current model
