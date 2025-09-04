@@ -32,7 +32,7 @@ class QAAgentAdapter:
     - Full configuration validation and error handling
     """
     
-    def __init__(self, user_id: str = "websocket_user@qai.com", enable_reasoning: bool = True, enable_memory: bool = True):
+    def __init__(self, user_id: str = "websocket_user@qai.com", enable_reasoning: bool = False, enable_memory: bool = True):
         """
         Initialize the QA Agent using EXACTLY the same logic as run_qa_agent.py
         

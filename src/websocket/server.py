@@ -658,11 +658,11 @@ if __name__ == "__main__":
         try:
             from src.websocket.qa_agent_adapter import QAAgentAdapter
             
-            # Initialize QA Agent with full feature set
+            # Initialize QA Agent with optimal performance (no reasoning for fast responses)
             qa_agent = QAAgentAdapter(
                 user_id="websocket_qa_agent@qai.com",
-                enable_reasoning=True,  # Enable reasoning capabilities
-                enable_memory=True      # Enable persistent memory
+                enable_reasoning=False,  # Disabled for fast responses (no 100+ second delays)
+                enable_memory=True       # Keep persistent memory
             )
             
             # Validate initialization

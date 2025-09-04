@@ -25,9 +25,13 @@ model:
 tools:
   enabled: true
   tools:
-  - enabled: true
+  - enabled: false
     name: web_search
-  - enabled: true
+  - enabled: false
     name: python_execution
   - enabled: false
     name: file_operations
+
+reasoning:
+  enabled: false
+  type: agent

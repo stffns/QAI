@@ -40,7 +40,7 @@ setup-hooks:
 
 # Testing
 test:
-	pytest --cov=src --cov-report=html --cov-report=term-missing
+	pytest --cov=src --cov=config --cov-report=html --cov-report=term-missing
 
 test-fast:
 	pytest -x --no-cov
@@ -53,15 +53,15 @@ test-unit:
 
 # Code quality
 lint:
-	pylint src/ scripts/ config.py
-	ruff check src/ scripts/ config.py
+	pylint src/ scripts/ config
+	ruff check src/ scripts/ config
 
 format:
-	black src/ scripts/ config.py
+	black src/ scripts/ config
+	isort src/ scripts/ config
 
 # QA Agent specific validation
-qa-check: lint type-check test-fast
-	@echo "✅ QA checks completed"
+## consolidated below
 
 validate-improvements:
 	@echo "🔍 Validating code quality improvements..."
@@ -88,8 +88,7 @@ demo-logging:
 	@echo "🎭 Running comprehensive logging demonstration..."
 	python scripts/logging_demo.py
 
-show-loguru-summary:
-	show-loguru-summary: ## Show comprehensive Loguru implementation summary
+show-loguru-summary: ## Show comprehensive Loguru implementation summary
 	@echo "🔧 Loguru Implementation Summary"
 	@echo "================================"
 	@python scripts/loguru_summary.py
@@ -116,21 +115,21 @@ view-performance:
 	@echo "⚡ Viewing performance metrics..."
 	@if [ -f logs/performance.log ]; then tail -10 logs/performance.log; else echo "No performance logs found"; fi
 
+
 clean-logs:
 	@echo "🧹 Cleaning old logs..."
 	@rm -rf logs/
 	@echo "✅ Logs cleaned"
-	isort src/ scripts/ config.py
 
 type-check:
-	mypy src/ scripts/ config.py
+	mypy src/ scripts/ config
 
 security:
 	bandit -r src/ -f json -o security-report.json
 	safety check
 
-qa-check: format lint type-check security test
-	@echo "✅ All quality checks passed!"
+qa-check: format lint type-check security test-fast
+	@echo "✅ QA checks completed"
 
 # Documentation
 docs:
