@@ -30,25 +30,26 @@ from .tools_manager import ToolsManager
 # Configure Loguru logging
 try:
     from ..logging_config import (
-        get_logger, 
+        get_logger,
         get_performance_logger,
         LogExecutionTime,
         LogStep,
         log_agent_event,
-        setup_qa_logging
+        setup_qa_logging,
     )
 except ImportError:
     # Fallback for relative imports
     import sys
     import os
+
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
     from logging_config import (
-        get_logger, 
+        get_logger,
         get_performance_logger,
         LogExecutionTime,
         LogStep,
         log_agent_event,
-        setup_qa_logging
+        setup_qa_logging,
     )
 
 # Initialize QA Agent logger
@@ -62,7 +63,7 @@ class ConfigValidator(Protocol):
     def validate_config(self) -> None:
         """
         Validate configuration
-        
+
         Raises:
             ConfigurationError: If any configuration is invalid, with specific details
             ValueError: If configuration values are invalid
@@ -157,7 +158,7 @@ class QAAgent:
             logger.info(
                 "QA Agent initialized with modular components",
                 component="QAAgent",
-                managers=["ModelManager", "ToolsManager", "StorageManager"]
+                managers=["ModelManager", "ToolsManager", "StorageManager"],
             )
 
             # Setup agent
@@ -181,7 +182,7 @@ class QAAgent:
             # This now expects validate_config to raise specific exceptions
             self.config.validate_config()
             logger.success("Configuration validation successful", component="QAAgent")
-            
+
         except ConfigurationError:
             # Re-raise ConfigurationError as-is to preserve specific details
             raise
@@ -191,28 +192,30 @@ class QAAgent:
                 "Configuration validation failed",
                 component="QAAgent",
                 error_type=type(e).__name__,
-                error_details=str(e)
+                error_details=str(e),
             )
-            raise ConfigurationError(f"Configuration validation failed: {str(e)}") from e
+            raise ConfigurationError(
+                f"Configuration validation failed: {str(e)}"
+            ) from e
         except Exception as e:
             # Handle unexpected validation errors
             logger.error(
                 "Unexpected error during configuration validation",
                 component="QAAgent",
                 error_type=type(e).__name__,
-                error_details=str(e)
+                error_details=str(e),
             )
-            raise ConfigurationError(
-                f"Unexpected validation error: {str(e)}"
-            ) from e
+            raise ConfigurationError(f"Unexpected validation error: {str(e)}") from e
 
-    def _normalize_instructions(self, instructions: Union[str, list[str]]) -> tuple[str, dict[str, Any]]:
+    def _normalize_instructions(
+        self, instructions: Union[str, list[str]]
+    ) -> tuple[str, dict[str, Any]]:
         """
         Normalize instructions and create logging metadata
-        
+
         Args:
             instructions: Agent instructions as string or list of strings
-            
+
         Returns:
             Tuple of (normalized_string, logging_metadata)
         """
@@ -220,15 +223,15 @@ class QAAgent:
             return instructions, {
                 "instructions_type": "string",
                 "instructions_length": len(instructions),
-                "instructions_items": 1
+                "instructions_items": 1,
             }
         elif isinstance(instructions, list):
             normalized = "\n".join(instructions)
             return normalized, {
-                "instructions_type": "list", 
+                "instructions_type": "list",
                 "instructions_length": len(normalized),
                 "instructions_items": len(instructions),
-                "instructions_list_lengths": [len(item) for item in instructions]
+                "instructions_list_lengths": [len(item) for item in instructions],
             }
         else:
             # Fallback for unexpected types
@@ -237,19 +240,19 @@ class QAAgent:
                 "instructions_type": type(instructions).__name__,
                 "instructions_length": len(normalized),
                 "instructions_items": 1,
-                "instructions_original_type": type(instructions).__name__
+                "instructions_original_type": type(instructions).__name__,
             }
 
     def _validate_and_normalize_tools(self, tools: Union[list, tuple]) -> list[Any]:
         """
         Validate and normalize tools to a consistent list format
-        
+
         Args:
             tools: Tools as list or tuple from tools manager
-            
+
         Returns:
             List of validated tools (keeping original types for Agent compatibility)
-            
+
         Raises:
             AgentCreationError: If tools are invalid
         """
@@ -257,71 +260,69 @@ class QAAgent:
             raise AgentCreationError(
                 f"Tools must be list or tuple, got {type(tools).__name__}"
             )
-        
+
         # Convert to list for consistency
         tools_list = list(tools)
-        
+
         # Validate each tool
         invalid_tools = []
         for i, tool in enumerate(tools_list):
             # Basic validation: check if tool has expected characteristics
             tool_info = {"index": i, "type": type(tool).__name__}
-            
+
             # Most tools should be callable OR have a 'run' method OR be dict-like OR have 'functions' attribute (agno tools)
             is_callable = callable(tool)
             has_run_method = hasattr(tool, "run") and callable(getattr(tool, "run"))
             is_dict_like = isinstance(tool, dict)
             has_functions = hasattr(tool, "functions")  # agno tools have this
-            
+
             if not (is_callable or has_run_method or is_dict_like or has_functions):
                 invalid_tools.append(
                     f"Tool {i}: not callable, no 'run' method, not dict-like, and no 'functions' attribute ({type(tool).__name__})"
                 )
                 continue
-            
+
             # Gather tool info for logging
             if hasattr(tool, "name"):
                 tool_info["name"] = getattr(tool, "name")
-            
+
             if hasattr(tool, "description"):
                 desc = getattr(tool, "description", "")
                 tool_info["description"] = desc[:50] + "..." if len(desc) > 50 else desc
-            
+
             if is_dict_like:
-                tool_info["dict_keys"] = list(tool.keys()) if hasattr(tool, "keys") else "unknown"
-            
+                tool_info["dict_keys"] = (
+                    list(tool.keys()) if hasattr(tool, "keys") else "unknown"
+                )
+
             if has_functions:
                 # For agno tools, get function count
                 functions = getattr(tool, "functions", [])
                 tool_info["functions_count"] = len(functions) if functions else 0
-            
+
             tool_info["validation"] = {
                 "callable": is_callable,
-                "has_run": has_run_method, 
+                "has_run": has_run_method,
                 "is_dict": is_dict_like,
-                "has_functions": has_functions
+                "has_functions": has_functions,
             }
-            
+
             logger.debug(
-                "Tool validation passed",
-                component="QAAgent", 
-                tool_info=tool_info
+                "Tool validation passed", component="QAAgent", tool_info=tool_info
             )
-        
+
         # Raise if any tools are invalid
         if invalid_tools:
-            raise AgentCreationError(
-                f"Invalid tools found: {'; '.join(invalid_tools)}"
-            )
-        
+            raise AgentCreationError(f"Invalid tools found: {'; '.join(invalid_tools)}")
+
         logger.info(
             "All tools validated successfully",
             component="QAAgent",
             tools_count=len(tools_list),
             original_type=type(tools).__name__,
-            normalized_type="list"
+            normalized_type="list",
         )
-        
+
         return tools_list
 
     def _create_agent_components(self) -> tuple[Model, list[Any], Memory | None]:
@@ -345,22 +346,25 @@ class QAAgent:
                 logger.info(
                     "Model created successfully",
                     component="QAAgent",
-                    model_type=type(model).__name__
+                    model_type=type(model).__name__,
                 )
 
             # Create tools
             with LogStep("Tools loading", "QAAgent"):
                 raw_tools = self.tools_manager.load_tools()
-                
+
                 # Validate and normalize tools to consistent list format
                 tools = self._validate_and_normalize_tools(raw_tools)
-                
+
                 logger.info(
-                    "Tools loaded and validated successfully", 
+                    "Tools loaded and validated successfully",
                     component="QAAgent",
                     tools_count=len(tools),
                     tool_types=[type(tool).__name__ for tool in tools] if tools else [],
-                    tool_names=[getattr(tool, "name", f"Tool_{i}") for i, tool in enumerate(tools)]
+                    tool_names=[
+                        getattr(tool, "name", f"Tool_{i}")
+                        for i, tool in enumerate(tools)
+                    ],
                 )
 
             # Create storage
@@ -453,13 +457,15 @@ class QAAgent:
                 instructions = self.config.get_agent_instructions()
 
                 # Normalize instructions for consistent logging and usage
-                normalized_instructions, instruction_metadata = self._normalize_instructions(instructions)
+                normalized_instructions, instruction_metadata = (
+                    self._normalize_instructions(instructions)
+                )
 
                 logger.debug(
                     "Agent configuration details",
                     component="QAAgent",
                     interface_config=interface_config,
-                    **instruction_metadata
+                    **instruction_metadata,
                 )
 
             # Create agent with isolated method for better maintainability
@@ -473,14 +479,17 @@ class QAAgent:
                 )
 
             logger.success("QA Agent setup completed successfully", component="QAAgent")
-            
+
             # Log completion event
-            log_agent_event("setup_completed", {
-                "model_type": type(model).__name__,
-                "tools_count": len(tools),
-                "memory_enabled": storage is not None,
-                "interface_config": interface_config
-            })
+            log_agent_event(
+                "setup_completed",
+                {
+                    "model_type": type(model).__name__,
+                    "tools_count": len(tools),
+                    "memory_enabled": storage is not None,
+                    "interface_config": interface_config,
+                },
+            )
 
     async def run_async(self) -> None:
         """
@@ -635,7 +644,7 @@ def main() -> int:
         enable_file_logging=True,
         enable_debug_logging=False,
         component="QAAgent",
-        development_mode=True
+        development_mode=True,
     )
 
     try:
@@ -650,18 +659,21 @@ def main() -> int:
                     logger.error(
                         "Health check failed",
                         errors=health["errors"],
-                        component="QAAgent"
+                        component="QAAgent",
                     )
                     return 1
 
             logger.success("QA Agent health check passed, starting...")
-            
+
             # Log agent details
-            log_agent_event("startup", {
-                "health_status": "healthy",
-                "components": list(qa_agent.get_info().keys())
-            })
-            
+            log_agent_event(
+                "startup",
+                {
+                    "health_status": "healthy",
+                    "components": list(qa_agent.get_info().keys()),
+                },
+            )
+
             qa_agent.run()
 
         return 0
@@ -671,7 +683,7 @@ def main() -> int:
             "Configuration error occurred",
             error=str(e),
             component="QAAgent",
-            error_type="ConfigurationError"
+            error_type="ConfigurationError",
         )
         logger.info("💡 Check your configuration by running: python config.py")
         return 2
@@ -680,8 +692,8 @@ def main() -> int:
         logger.error(
             "Agent creation failed",
             error=str(e),
-            component="QAAgent", 
-            error_type="AgentCreationError"
+            component="QAAgent",
+            error_type="AgentCreationError",
         )
         return 3
 
@@ -694,7 +706,7 @@ def main() -> int:
             "Unexpected error occurred",
             error=str(e),
             component="QAAgent",
-            error_type=type(e).__name__
+            error_type=type(e).__name__,
         )
         logger.exception("Full exception details:")
         return 1

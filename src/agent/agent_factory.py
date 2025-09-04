@@ -42,10 +42,14 @@ class AgentFactory:
         """
         self.config = config
 
-    def _normalize_instructions(self, instructions: Union[str, list[str]]) -> Union[str, list[str]]:
+    def _normalize_instructions(
+        self, instructions: Union[str, list[str]]
+    ) -> Union[str, list[str]]:
         """Ensure instructions are a non-empty string or a non-empty list of non-empty strings."""
         if isinstance(instructions, list):
-            if not instructions or any(not isinstance(x, str) or not x.strip() for x in instructions):
+            if not instructions or any(
+                not isinstance(x, str) or not x.strip() for x in instructions
+            ):
                 raise AgentFactoryConfigError(
                     "Agent instructions list is empty or contains blank/non-string items"
                 )
@@ -93,7 +97,9 @@ class AgentFactory:
         try:
             model: Model = model_manager.create_model()
             if model is None:
-                raise AgentFactoryBuildError("ModelManager.create_model() returned None")
+                raise AgentFactoryBuildError(
+                    "ModelManager.create_model() returned None"
+                )
 
             tools_seq: Sequence[Any] | Iterable[Any] = tools_manager.load_tools()
             tools: list[Any] = self._as_list(tools_seq)

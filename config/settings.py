@@ -12,6 +12,10 @@ from typing import Any, Dict, Optional
 import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Ensure .env is loaded
+from dotenv import load_dotenv
+load_dotenv()
+
 from .models import (
     ModelConfig,
     DatabaseConfig,
@@ -66,7 +70,7 @@ class Settings(BaseSettings):
         self._ensure_directories()
     
     def _update_from_yaml(self, yaml_config: Dict[str, Any]) -> None:
-        """Update configuration from YAML data"""
+        """Update configuration from YAML data - Environment variables have priority"""
         section_mappings = {
             'model': 'model',
             'database': 'database', 
@@ -81,16 +85,51 @@ class Settings(BaseSettings):
                 section_data = yaml_config[yaml_section]
                 if isinstance(section_data, dict):
                     current_section = getattr(self, attr_name)
-                    # Update the section with YAML data
-                    updated_data = {**current_section.model_dump(), **section_data}
+                    current_data = current_section.model_dump()
+                    
+                    # Environment variables have priority over YAML
+                    # Only use YAML values if environment variable is not set (is default)
+                    updated_data = {}
+                    section_class = type(current_section)
+                    field_defaults = self._get_field_defaults(section_class)
+                    
+                    for key, yaml_value in section_data.items():
+                        current_value = current_data.get(key)
+                        default_value = field_defaults.get(key)
+                        
+                        # If current value is different from default, it came from env var - keep it
+                        # Otherwise, use YAML value
+                        if current_value != default_value:
+                            updated_data[key] = current_value  # Keep env var value
+                        else:
+                            updated_data[key] = yaml_value     # Use YAML value
+                    
+                    # Add any fields not in YAML but present in current config
+                    for key, value in current_data.items():
+                        if key not in updated_data:
+                            updated_data[key] = value
                     
                     # Create new instance with updated data
-                    section_class = type(current_section)
                     try:
                         new_section = section_class(**updated_data)
                         setattr(self, attr_name, new_section)
                     except Exception as e:
                         print(f"⚠️  Error updating {yaml_section} from YAML: {e}")
+    
+    def _get_field_defaults(self, model_class) -> Dict[str, Any]:
+        """Get default values for a Pydantic model class"""
+        defaults = {}
+        for field_name, field_info in model_class.model_fields.items():
+            if field_info.default is not None and field_info.default != Ellipsis:
+                defaults[field_name] = field_info.default
+            elif hasattr(field_info, 'default_factory') and field_info.default_factory:
+                try:
+                    defaults[field_name] = field_info.default_factory()
+                except:
+                    defaults[field_name] = None
+            else:
+                defaults[field_name] = None
+        return defaults
     
     def _load_yaml_config(self) -> Dict[str, Any]:
         """Load configuration from YAML file"""
@@ -118,8 +157,8 @@ class Settings(BaseSettings):
         default_config = {
             'model': {
                 'provider': 'openai',
-                'id': 'gpt-3.5-turbo',
-                'temperature': 0.7
+                'id': 'gpt-5-mini',
+                'temperature': 1.0
             },
             'database': {
                 'url': 'sqlite:///./data/qa_intelligence.db',
@@ -251,7 +290,24 @@ Always provide clear, actionable advice and maintain a focus on quality and reli
         try:
             api_key = self.get_api_key()
             if not api_key:
-                raise ValueError("API key is required but not configured")
+                # Try to detect API key from environment again
+                provider = self.model.provider
+                env_keys = [
+                    f"{provider.upper()}_API_KEY",
+                    "OPENAI_API_KEY",  # fallback
+                    "API_KEY"  # generic fallback
+                ]
+                
+                found_key = None
+                for env_key in env_keys:
+                    found_key = os.getenv(env_key)
+                    if found_key:
+                        # Update the model with the found key
+                        self.model.api_key = found_key
+                        break
+                
+                if not found_key:
+                    raise ValueError(f"API key is required but not configured. Set {env_keys[0]} environment variable.")
         except Exception as e:
             raise ValueError(f"Model configuration error: {e}")
     

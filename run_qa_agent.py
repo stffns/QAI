@@ -1,13 +1,45 @@
 #!/usr/bin/env python3
 """
 Executable script for the QA Agent with Reasoning capabilities
+
+Adds basic CLI flags for user id, reasoning mode, and memory control.
 """
 
 import sys
 import os
+import argparse
 
-def main():
-    """Execute the QA Agent with reasoning support"""
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Run QA Intelligence Agent (chat)"
+    )
+    parser.add_argument(
+        "--user-id",
+        default="qa_analyst@qai.com",
+        help="User context identifier (default: qa_analyst@qai.com)",
+    )
+    parser.add_argument(
+        "--reasoning",
+        choices=["off", "agent", "model", "tools"],
+        default=None,
+        help="Override reasoning mode (off/agent/model/tools)",
+    )
+    parser.add_argument(
+        "--reasoning-model-id",
+        default=None,
+        help="Reasoning model id when --reasoning=model (e.g. o3-mini)",
+    )
+    parser.add_argument(
+        "--no-memory",
+        action="store_true",
+        help="Disable persistent memory for this session",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    """Execute the QA Agent with reasoning support and CLI overrides"""
     try:
         # Change working directory to project root
         project_root = os.path.dirname(os.path.abspath(__file__))
@@ -16,6 +48,9 @@ def main():
         # Add project root to Python path
         sys.path.insert(0, project_root)
         
+        # Parse CLI arguments
+        args = parse_args(argv)
+
         # Import core dependencies
         from agno.agent import Agent
         from agno.models.openai import OpenAIChat
@@ -44,15 +79,26 @@ def main():
         # Create components
         model = model_manager.create_model()
         tools = tools_manager.load_tools()
-        storage = storage_manager.setup_storage()
+        storage = None if args.no_memory else storage_manager.setup_storage()
         
         # Get configuration
         interface_config = config.get_interface_config()
         instructions = config.get_agent_instructions()
         reasoning_config = config.get_reasoning_config()
         
-        # Get QA context user_id - default para QA Intelligence
-        user_id = "qa_analyst@qai.com"  # Contexto por defecto para QA
+        # Apply CLI overrides
+        # user_id for QA context
+        user_id = args.user_id
+        
+        # Reasoning override
+        if args.reasoning is not None:
+            if args.reasoning == "off":
+                reasoning_config["enabled"] = False
+            else:
+                reasoning_config["enabled"] = True
+                reasoning_config["type"] = args.reasoning
+                if args.reasoning == "model" and args.reasoning_model_id:
+                    reasoning_config["model_id"] = args.reasoning_model_id
         
         # Prepare agent arguments
         agent_args = {

@@ -199,6 +199,66 @@ class ConfigManager:
             ),
         }
 
+    def get_websocket_config(self) -> Dict[str, Any]:
+        """Get WebSocket configuration"""
+        return {
+            "enabled": self.get("websocket.enabled", False),
+            "server": {
+                "host": self.get("websocket.server.host", "localhost"),
+                "port": self.get("websocket.server.port", 8765),
+                "max_connections": self.get("websocket.server.max_connections", 100),
+                "max_message_size": self.get("websocket.server.max_message_size", 1048576),
+                "ping_interval": self.get("websocket.server.ping_interval", 20),
+                "ping_timeout": self.get("websocket.server.ping_timeout", 20),
+                "close_timeout": self.get("websocket.server.close_timeout", 10),
+            },
+            "security": {
+                "authentication": {
+                    "enabled": self.get("websocket.security.authentication.enabled", True),
+                    "token_expiry": self.get("websocket.security.authentication.token_expiry", 3600),
+                    "algorithm": self.get("websocket.security.authentication.algorithm", "HS256"),
+                    "issuer": self.get("websocket.security.authentication.issuer", "qa-intelligence"),
+                    "audience": self.get("websocket.security.authentication.audience", "websocket-client"),
+                },
+                "cors": {
+                    "enabled": self.get("websocket.security.cors.enabled", True),
+                    "origins": self.get("websocket.security.cors.origins", [
+                        "http://localhost:3000", 
+                        "http://localhost:8080", 
+                        "http://127.0.0.1:3000"
+                    ]),
+                    "methods": self.get("websocket.security.cors.methods", [
+                        "GET", "POST", "PUT", "DELETE", "OPTIONS"
+                    ]),
+                    "headers": self.get("websocket.security.cors.headers", ["*"]),
+                },
+                "rate_limiting": {
+                    "enabled": self.get("websocket.security.rate_limiting.enabled", True),
+                    "max_requests_per_minute": self.get("websocket.security.rate_limiting.max_requests_per_minute", 60),
+                    "burst_limit": self.get("websocket.security.rate_limiting.burst_limit", 10),
+                    "window_size": self.get("websocket.security.rate_limiting.window_size", 60),
+                    "cleanup_interval": self.get("websocket.security.rate_limiting.cleanup_interval", 300),
+                },
+            },
+            "ssl": {
+                "enabled": self.get("websocket.ssl.enabled", False),
+                "cert_file": self.get("websocket.ssl.cert_file"),
+                "key_file": self.get("websocket.ssl.key_file"),
+                "ca_certs": self.get("websocket.ssl.ca_certs"),
+                "verify_mode": self.get("websocket.ssl.verify_mode", "CERT_REQUIRED"),
+            },
+            "logging": {
+                "level": self.get("websocket.logging.level", "INFO"),
+                "file": self.get("websocket.logging.file", "logs/websocket.log"),
+                "max_file_size": self.get("websocket.logging.max_file_size", "10MB"),
+                "backup_count": self.get("websocket.logging.backup_count", 5),
+                "format": self.get("websocket.logging.format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"),
+            },
+            "enable_compression": self.get("websocket.enable_compression", False),
+            "enable_metrics": self.get("websocket.enable_metrics", True),
+            "metrics_interval": self.get("websocket.metrics_interval", 60),
+        }
+
     def validate_config(self) -> bool:
         """Valida que la configuración sea correcta"""
         try:

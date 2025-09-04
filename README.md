@@ -35,8 +35,15 @@ make qa-check
 ### **Ejecución principal**
 
 ```bash
-# Ejecutar el agente QA
+# Ejecutar el agente QA (Makefile)
 make run
+
+# Pasar flags al CLI con ARGS
+make run ARGS="--user-id me@qai.com --reasoning agent"
+
+# Ejecutar directamente con Python
+python run_qa_agent.py --user-id me@qai.com --reasoning model --reasoning-model-id o3-mini
+python run_qa_agent.py --no-memory --reasoning off
 
 # Demo de teams colaborativos
 make run-teams
@@ -67,12 +74,9 @@ reasoning:
 - **Reasoning Manager**: Capacidades de razonamiento
 
 ### **Entry points**
-- `scripts/run_qa_agent.py` - Agente principal con reasoning
-- `scripts/demo_qa_intelligence.py` - Demo del sistema QA
-- `scripts/demo_advanced_memory.py` - Demo del sistema de memoria
-- `scripts/inspect_memory.py` - Herramienta de inspección de memoria
-- `scripts/demo_qa_intelligence.py` - Demo del sistema QA
-- `scripts/demo_advanced_memory.py` - Demo del sistema de memoria
+- `run_qa_agent.py` - Agente principal con CLI y flags
+- `scripts/run_qa_agent.py` - Wrapper que delega a `run_qa_agent.py`
+- `chat_directo.py` - Chat simple cargando `.env`
 - `scripts/inspect_memory.py` - Herramienta de inspección de memoria
 
 ## 📁 Estructura del Proyecto
@@ -105,7 +109,7 @@ QAI/
 - ✅ **Métricas y KPIs** de calidad
 - ✅ **Frameworks de testing** modernos
 
-## � Configuración
+## 🛠️ Configuración
 
 ### **Archivo YAML Principal (`agent_config.yaml`)**
 
@@ -144,6 +148,20 @@ python configurator.py
 - 📝 Editar instrucciones del agente
 - 🖥️ Configurar interfaz
 - 💾 Guardar/restaurar configuración
+
+### **CLI Flags Disponibles**
+
+- `--user-id`: contexto de usuario para QA (por defecto `qa_analyst@qai.com`).
+- `--reasoning`: `off`, `agent`, `model`, `tools` (override de configuración YAML).
+- `--reasoning-model-id`: id del modelo de reasoning cuando `--reasoning=model` (e.g., `o3-mini`).
+- `--no-memory`: deshabilita la memoria persistente en la sesión actual.
+
+Ejemplos:
+
+```bash
+python run_qa_agent.py --user-id qa_lead@qai.com --reasoning tools
+make run ARGS="--no-memory --reasoning off"
+```
 
 ## 💬 Usando el Agente
 

@@ -50,10 +50,25 @@ class OpenAIModelConfig(ModelConfig):
     def get_available_models(cls) -> list[str]:
         """Get list of available OpenAI models"""
         return [
+            # GPT-5 Series (Latest)
+            "gpt-5",
+            "gpt-5-mini",
+            "gpt-5-turbo",
+            
+            # GPT-4 Series
             "gpt-4",
             "gpt-4-turbo",
+            "gpt-4o",
+            "gpt-4o-mini",
+            
+            # GPT-3.5 Series (Legacy)
             "gpt-3.5-turbo",
-            "gpt-3.5-turbo-16k"
+            "gpt-3.5-turbo-16k",
+            
+            # Reasoning Models
+            "o3-mini",
+            "o1-preview",
+            "o1-mini"
         ]
 
 

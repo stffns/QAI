@@ -4,7 +4,7 @@
 # Configuración del Modelo de IA
 model:
   provider: "openai"  # openai, azure, deepseek
-  id: "gpt-4"  # gpt-3.5-turbo, gpt-4, gpt-4-turbo
+  id: "gpt-5-mini"  # gpt-3.5-turbo, gpt-4, gpt-4-turbo
   temperature: 1.0  # 0.0 = más determinista, 2.0 = más creativo
   max_tokens: null  # null = sin límite, número = límite específico
 
@@ -93,9 +93,76 @@ interface:
     port: 7777
     auto_open_browser: false
     authentication: false
-    theme: "dark"  # dark, light, auto
 
-# Configuración de Memoria y Contexto
+# Configuración del Sistema WebSocket
+# Sistema de comunicación independiente para interacción en tiempo real
+websocket:
+  enabled: false  # Habilitar/deshabilitar sistema WebSocket
+  
+  # Configuración del servidor WebSocket
+  server:
+    host: "localhost"
+    port: 8765
+    max_connections: 100
+    max_message_size: 1048576  # 1MB
+    ping_interval: 20          # segundos
+    ping_timeout: 20           # segundos
+    close_timeout: 10          # segundos
+  
+  # Configuración de seguridad
+  security:
+    # Autenticación JWT
+    authentication:
+      enabled: true
+      token_expiry: 3600       # segundos (1 hora)
+      algorithm: "HS256"
+      issuer: "qa-intelligence"
+      audience: "websocket-client"
+    
+    # CORS configuration
+    cors:
+      enabled: true
+      origins:
+        - "http://localhost:3000"
+        - "http://localhost:8080"
+        - "http://127.0.0.1:3000"
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+      headers: ["*"]
+    
+    # Rate limiting
+    rate_limiting:
+      enabled: true
+      max_requests_per_minute: 60
+      burst_limit: 10
+      window_size: 60
+      cleanup_interval: 300
+  
+  # Configuración SSL/TLS
+  ssl:
+    enabled: false
+    cert_file: null           # Ruta al certificado SSL
+    key_file: null            # Ruta a la clave privada
+    ca_certs: null            # Ruta a CA certificates
+    verify_mode: "CERT_REQUIRED"
+  
+  # Configuración de logging específica
+  logging:
+    level: "INFO"
+    file: "logs/websocket.log"
+    max_file_size: "10MB"
+    backup_count: 5
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # Configuraciones avanzadas
+  enable_compression: false   # Compresión de mensajes
+  enable_metrics: true        # Métricas de performance
+  metrics_interval: 60        # Intervalo de métricas en segundos
+
+# Configuración de la Interfaz
+interface:
+  # Configuración de terminal
+  terminal:
+    theme: "dark"  # dark, light, auto# Configuración de Memoria y Contexto
 memory:
   # Memoria de conversación (básica)
   conversation:

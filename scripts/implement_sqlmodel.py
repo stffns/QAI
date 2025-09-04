@@ -11,114 +11,121 @@ from typing import List, Dict
 import subprocess
 import json
 
+
 class SQLModelImplementer:
     """Implementador de SQLModel para QA Intelligence"""
-    
+
     def __init__(self, project_root: str):
         self.project_root = Path(project_root)
         self.database_dir = self.project_root / "database"
-        
+
     def check_prerequisites(self) -> Dict[str, bool]:
         """Verificar prerequisitos para la implementación"""
         checks = {
             "project_exists": self.project_root.exists(),
             "config_exists": (self.project_root / "config").exists(),
             "pydantic_installed": False,
-            "sqlite_db_exists": (self.project_root / "data" / "qa_intelligence.db").exists()
+            "sqlite_db_exists": (
+                self.project_root / "data" / "qa_intelligence.db"
+            ).exists(),
         }
-        
+
         # Verificar si Pydantic está instalado
         try:
             import pydantic
+
             checks["pydantic_installed"] = True
         except ImportError:
             checks["pydantic_installed"] = False
-        
+
         return checks
-    
+
     def install_dependencies(self) -> bool:
         """Instalar dependencias necesarias"""
         dependencies = [
             "sqlmodel>=0.0.8",
-            "alembic>=1.12.0", 
+            "alembic>=1.12.0",
             "psycopg2-binary>=2.9.7",
             "python-dotenv>=1.0.0",
-            "bcrypt>=4.0.1"
+            "bcrypt>=4.0.1",
         ]
-        
+
         print("📦 Instalando dependencias SQLModel...")
-        
+
         try:
             for dep in dependencies:
                 print(f"  Installing {dep}...")
-                result = subprocess.run([
-                    sys.executable, "-m", "pip", "install", dep
-                ], capture_output=True, text=True, cwd=self.project_root)
-                
+                result = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", dep],
+                    capture_output=True,
+                    text=True,
+                    cwd=self.project_root,
+                )
+
                 if result.returncode != 0:
                     print(f"  ❌ Error installing {dep}: {result.stderr}")
                     return False
                 else:
                     print(f"  ✅ {dep} installed")
-            
+
             return True
         except Exception as e:
             print(f"❌ Error installing dependencies: {e}")
             return False
-    
+
     def create_directory_structure(self) -> bool:
         """Crear estructura de directorios para SQLModel"""
         directories = [
             "database",
             "database/models",
-            "database/repositories", 
+            "database/repositories",
             "database/migrations",
-            "database/utils"
+            "database/utils",
         ]
-        
+
         print("📁 Creando estructura de directorios...")
-        
+
         try:
             for dir_path in directories:
                 full_path = self.project_root / dir_path
                 full_path.mkdir(parents=True, exist_ok=True)
-                
+
                 # Crear __init__.py en cada directorio Python
                 if not dir_path.endswith("migrations"):
                     init_file = full_path / "__init__.py"
                     if not init_file.exists():
                         init_file.write_text("# SQLModel module\n")
-                
+
                 print(f"  ✅ {dir_path}/")
-            
+
             return True
         except Exception as e:
             print(f"❌ Error creating directories: {e}")
             return False
-    
+
     def create_base_files(self) -> bool:
         """Crear archivos base de SQLModel"""
         print("📝 Creando archivos base...")
-        
+
         try:
             # 1. database/__init__.py
             self._create_database_init()
-            
+
             # 2. database/base.py
             self._create_base_models()
-            
+
             # 3. database/connection.py
             self._create_connection_manager()
-            
+
             # 4. database/models/__init__.py
             self._create_models_init()
-            
+
             print("  ✅ Archivos base creados")
             return True
         except Exception as e:
             print(f"❌ Error creating base files: {e}")
             return False
-    
+
     def _create_database_init(self):
         """Crear database/__init__.py"""
         content = '''"""
@@ -139,7 +146,7 @@ __all__ = [
 ]
 '''
         (self.database_dir / "__init__.py").write_text(content)
-    
+
     def _create_base_models(self):
         """Crear database/base.py"""
         content = '''"""
@@ -201,7 +208,7 @@ class DatabaseConfig:
     POSTGRES_POOL_PRE_PING = True
 '''
         (self.database_dir / "base.py").write_text(content)
-    
+
     def _create_connection_manager(self):
         """Crear database/connection.py"""
         content = '''"""
@@ -331,7 +338,7 @@ def test_connection():
         return False
 '''
         (self.database_dir / "connection.py").write_text(content)
-    
+
     def _create_models_init(self):
         """Crear database/models/__init__.py"""
         content = '''"""
@@ -361,11 +368,11 @@ MODEL_REGISTRY = [
 ]
 '''
         (self.database_dir / "models" / "__init__.py").write_text(content)
-    
+
     def create_sample_user_model(self) -> bool:
         """Crear modelo de usuario como ejemplo"""
         print("👤 Creando modelo User de ejemplo...")
-        
+
         try:
             content = '''"""
 User models for QA Intelligence
@@ -569,20 +576,20 @@ class AuditLog(BaseModel, table=True):
     # Relationship to user
     # user: Optional[User] = Relationship(back_populates="audit_logs")
 '''
-            
+
             user_model_path = self.database_dir / "models" / "users.py"
             user_model_path.write_text(content)
-            
+
             print("  ✅ User model created")
             return True
         except Exception as e:
             print(f"❌ Error creating user model: {e}")
             return False
-    
+
     def create_test_script(self) -> bool:
         """Crear script de prueba para SQLModel"""
         print("🧪 Creando script de prueba...")
-        
+
         try:
             content = '''#!/usr/bin/env python3
 """
@@ -734,16 +741,16 @@ if __name__ == "__main__":
     success = main()
     sys.exit(0 if success else 1)
 '''
-            
+
             test_script_path = self.project_root / "test_sqlmodel.py"
             test_script_path.write_text(content)
-            
+
             print("  ✅ Test script created")
             return True
         except Exception as e:
             print(f"❌ Error creating test script: {e}")
             return False
-    
+
     def generate_implementation_report(self) -> Dict:
         """Generar reporte de implementación"""
         return {
@@ -754,87 +761,89 @@ if __name__ == "__main__":
                 "database/connection.py - Database manager",
                 "database/models/ - Model definitions",
                 "database/models/users.py - User and audit models",
-                "test_sqlmodel.py - Test suite"
+                "test_sqlmodel.py - Test suite",
             ],
             "next_steps": [
                 "Run test script: python test_sqlmodel.py",
                 "Create additional models (testing, applications)",
                 "Implement repositories pattern",
                 "Setup Alembic migrations",
-                "Integrate with existing QA Agent"
+                "Integrate with existing QA Agent",
             ],
             "dependencies_installed": [
                 "sqlmodel>=0.0.8",
                 "alembic>=1.12.0",
                 "psycopg2-binary>=2.9.7",
                 "python-dotenv>=1.0.0",
-                "bcrypt>=4.0.1"
-            ]
+                "bcrypt>=4.0.1",
+            ],
         }
+
 
 def main():
     """Función principal"""
     project_root = "/Users/jaysonsteffens/Documents/QAI"
-    
+
     print("🚀 IMPLEMENTANDO SQLMODEL EN QA INTELLIGENCE")
     print("=" * 50)
-    
+
     implementer = SQLModelImplementer(project_root)
-    
+
     # 1. Verificar prerequisites
     print("🔍 Verificando prerequisites...")
     checks = implementer.check_prerequisites()
-    
+
     for check, result in checks.items():
         status = "✅" if result else "❌"
         print(f"  {status} {check}")
-    
+
     if not all(checks.values()):
         print("❌ Prerequisites no cumplidos. Abortando.")
         return False
-    
+
     # 2. Instalar dependencias
     if not implementer.install_dependencies():
         print("❌ Error instalando dependencias")
         return False
-    
+
     # 3. Crear estructura
     if not implementer.create_directory_structure():
         print("❌ Error creando estructura")
         return False
-    
+
     # 4. Crear archivos base
     if not implementer.create_base_files():
         print("❌ Error creando archivos base")
         return False
-    
+
     # 5. Crear modelo ejemplo
     if not implementer.create_sample_user_model():
         print("❌ Error creando modelo User")
         return False
-    
+
     # 6. Crear script de prueba
     if not implementer.create_test_script():
         print("❌ Error creando script de prueba")
         return False
-    
+
     # 7. Generar reporte
     report = implementer.generate_implementation_report()
-    
+
     print(f"\n🎉 IMPLEMENTACIÓN COMPLETADA!")
     print("=" * 50)
     print(f"📁 Componentes creados: {len(report['components_created'])}")
     print(f"📦 Dependencias: {len(report['dependencies_installed'])}")
-    
+
     print(f"\n✅ PRÓXIMOS PASOS:")
-    for i, step in enumerate(report['next_steps'], 1):
+    for i, step in enumerate(report["next_steps"], 1):
         print(f"  {i}. {step}")
-    
+
     print(f"\n🧪 Para probar la implementación:")
     print(f"  cd {project_root}")
     print(f"  python test_sqlmodel.py")
-    
+
     return True
+
 
 if __name__ == "__main__":
     success = main()

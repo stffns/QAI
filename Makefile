@@ -23,7 +23,7 @@ help:
 	@echo "  clean        Clean build artifacts"
 	@echo "  build        Build package"
 	@echo "  docs         Build documentation"
-	@echo "  run          Run QA agent"
+	@echo "  run          Run QA agent (use ARGS=\"--flags\")"
 	@echo "  run-teams    Run QA teams demo"
 	@echo ""
 
@@ -160,7 +160,7 @@ publish: build
 
 # Application
 run:
-	python scripts/run_qa_agent.py
+	python scripts/run_qa_agent.py $(ARGS)
 
 run-teams:
 	python scripts/demo_qa_teams_integration.py
