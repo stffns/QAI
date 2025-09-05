@@ -523,10 +523,26 @@ class ToolsConfig(BaseModel):
     # Tool collection
     tools: List[ToolConfig] = Field(
         default_factory=lambda: [
-            ToolConfig(name="web_search", enabled=True, timeout=30),
-            ToolConfig(name="python_execution", enabled=True, timeout=60),
+            # Basic tools (disabled per YAML config)
+            ToolConfig(name="web_search", enabled=False, timeout=30),
+            ToolConfig(name="python_execution", enabled=False, timeout=60),
             ToolConfig(name="file_operations", enabled=False, timeout=15),
-            ToolConfig(name="calculator", enabled=True, timeout=5)
+            ToolConfig(name="calculator", enabled=True, timeout=5),
+            # QA tools (enabled per YAML config)
+            ToolConfig(name="qa_database_stats", enabled=True, timeout=30),
+            ToolConfig(name="qa_apps", enabled=True, timeout=30),
+            ToolConfig(name="qa_countries", enabled=True, timeout=30),
+            ToolConfig(name="qa_mappings", enabled=True, timeout=30),
+            ToolConfig(name="qa_search", enabled=True, timeout=30),
+            # SQL tools (enabled per YAML config)
+            ToolConfig(name="sql_execute_query", enabled=True, timeout=30),
+            ToolConfig(name="sql_analyze_table", enabled=True, timeout=30),
+            ToolConfig(name="sql_explore_database", enabled=True, timeout=30),
+            ToolConfig(name="sql_qa_analytics", enabled=True, timeout=30),
+            # API tools (enabled per YAML config)
+            ToolConfig(name="api_test_endpoint", enabled=True, timeout=30),
+            ToolConfig(name="api_health_check", enabled=True, timeout=15),
+            ToolConfig(name="api_performance_test", enabled=True, timeout=60)
         ],
         description="List of available tools with their configurations"
     )
