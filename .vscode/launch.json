@@ -1,0 +1,93 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "🚀 Debug QA Agent",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/run_qa_agent.py",
+            "args": [
+                "--user-id",
+                "debug_user@qai.com"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+            },
+            "justMyCode": false,
+            "stopOnEntry": false
+        },
+        {
+            "name": "🌐 Debug WebSocket Server",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/run_websocket_server.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+            },
+            "justMyCode": false,
+            "stopOnEntry": false
+        },
+        {
+            "name": "🧪 Debug Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "${workspaceFolder}/tests/",
+                "-v",
+                "--tb=short"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "🔧 Debug Current Test File",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "${file}",
+                "-v",
+                "--tb=short"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "🔄 Debug Database Migration",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/database/migrations/add_solid_fields.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "👥 Debug QA Teams",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/demo_qa_teams_integration.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+            },
+            "justMyCode": false
+        }
+    ]
+}

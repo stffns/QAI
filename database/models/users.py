@@ -170,7 +170,7 @@ class AuditLog(BaseModel, table=True):
     Registro de auditoría para compliance
     Registra todas las acciones importantes del sistema
     """
-    __tablename__ = "audit_logs"
+    __tablename__ = "audit_log"  # Corregido para coincidir con la migración
 
     # Primary key
     id: Optional[int] = Field(default=None, primary_key=True)

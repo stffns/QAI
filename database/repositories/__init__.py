@@ -22,6 +22,9 @@ from .exceptions import (
 
 # ========== Specific Repositories ==========
 from .users import UserRepository
+from .apps_repository import AppsRepository
+from .countries_repository import CountriesRepository
+from .mappings_repository import MappingsRepository
 
 # ========== Transaction Management ==========
 from .unit_of_work import UnitOfWork, UnitOfWorkFactory, create_unit_of_work_factory
@@ -43,6 +46,9 @@ __all__ = [
     
     # Specific Repositories
     "UserRepository",
+    "AppsRepository",
+    "CountriesRepository",
+    "MappingsRepository",
     
     # Unit of Work Pattern
     "UnitOfWork",

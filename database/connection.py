@@ -5,7 +5,7 @@ Handles SQLite and PostgreSQL connections with pooling
 
 from sqlmodel import create_engine, Session, SQLModel
 from sqlalchemy.engine import Engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import StaticPool, NullPool
 from sqlalchemy import text
 from contextlib import contextmanager
 from typing import Generator, Optional
@@ -41,7 +41,7 @@ class DatabaseManager:
             engine = create_engine(
                 self.database_url,
                 connect_args=connect_args,
-                poolclass=StaticPool,
+                poolclass=NullPool,  # NullPool es más apropiado para SQLite que StaticPool
                 echo=self.echo
             )
             

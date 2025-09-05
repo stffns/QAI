@@ -1,0 +1,77 @@
+{
+    "python.pythonPath": ".venv/bin/python",
+    "python.defaultInterpreterPath": ".venv/bin/python",
+    "python.terminal.activateEnvironment": true,
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.autoTestDiscoverOnSaveEnabled": true,
+    "files.associations": {
+        "*.py": "python",
+        "agent_config.yaml": "yaml",
+        "*.yaml": "yaml",
+        "Makefile": "makefile"
+    },
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+    },
+    "python.formatting.provider": "black",
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.linting.flake8Enabled": false,
+    "python.linting.mypyEnabled": true,
+    "python.linting.banditEnabled": true,
+    "python.formatting.blackArgs": [
+        "--line-length=88",
+        "--target-version=py311"
+    ],
+    "pylint.args": [
+        "--load-plugins=pylint_pydantic"
+    ],
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true,
+        "**/.pytest_cache": true,
+        "**/node_modules": true,
+        "**/.coverage": true,
+        "**/htmlcov": true,
+        "**/.mypy_cache": true,
+        "**/dist": true,
+        "**/*.egg-info": true
+    },
+    "search.exclude": {
+        "**/logs": true,
+        "**/cache": true,
+        "**/temp": true,
+        "**/.venv": true
+    },
+    "terminal.integrated.env.osx": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+    },
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+    },
+    "yaml.schemas": {
+        "file:///Users/jaysonsteffens/Documents/QAI/agent_config.yaml": "agent_config.yaml"
+    },
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.patterns": {
+        "*.py": "${capture}.pyc",
+        "__init__.py": "__pycache__",
+        "requirements.txt": "requirements-*.txt",
+        "pyproject.toml": "pytest.ini, setup.cfg, .coveragerc",
+        "Makefile": "*.mk",
+        ".env": ".env.*"
+    },
+    "workbench.colorCustomizations": {
+        "terminal.background": "#1e1e1e",
+        "terminal.foreground": "#ffffff"
+    },
+    "task.autoDetect": "on",
+    "task.quickOpen.history": 10,
+    "debug.console.fontSize": 14,
+    "debug.internalConsoleOptions": "openOnSessionStart"
+}

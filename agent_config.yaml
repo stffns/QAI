@@ -56,6 +56,16 @@ tools:
     name: python_execution
   - enabled: false
     name: file_operations
+  - enabled: true
+    name: qa_database_stats
+  - enabled: true
+    name: qa_apps
+  - enabled: true
+    name: qa_countries
+  - enabled: true
+    name: qa_mappings
+  - enabled: true
+    name: qa_search
 
 reasoning:
   enabled: true

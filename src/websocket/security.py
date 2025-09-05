@@ -19,7 +19,7 @@ import time
 import hashlib
 import secrets
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, Set, Any, List
 from collections import defaultdict, deque
 
@@ -314,7 +314,7 @@ class SecurityManager:
         Returns:
             str: JWT token
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expiry = now + timedelta(seconds=self.config.authentication.token_expiry)
         
         payload = {

@@ -7,7 +7,7 @@ Handles only user-related data operations
 from typing import Optional, Sequence, Dict, Any
 from sqlmodel import Session, select, col
 from sqlalchemy import func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from ..models.users import User, UserRole
 from .base import BaseRepository
@@ -70,7 +70,7 @@ class UserRepository(BaseRepository[User], IUserRepository[User]):
     def get_locked_users(self) -> Sequence[User]:
         """Get currently locked users"""
         try:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(timezone.utc)
             statement = (
                 select(User)
                 .where(col(User.locked_until) != None)
