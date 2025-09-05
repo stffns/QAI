@@ -1,0 +1,164 @@
+{
+    "QA Agent Class": {
+        "prefix": "qa-agent",
+        "body": [
+            "class ${1:ClassName}:",
+            "    \"\"\"",
+            "    ${2:Description}",
+            "    \"\"\"",
+            "    ",
+            "    def __init__(self, ${3:params}):",
+            "        \"\"\"Initialize ${1:ClassName}\"\"\"",
+            "        ${4:pass}",
+            "    ",
+            "    def ${5:method_name}(self) -> ${6:ReturnType}:",
+            "        \"\"\"${7:Method description}\"\"\"",
+            "        ${8:pass}",
+            "$0"
+        ],
+        "description": "QA Agent class template"
+    },
+    "Repository Pattern": {
+        "prefix": "qa-repo",
+        "body": [
+            "from typing import List, Optional",
+            "from sqlmodel import Session, select",
+            "from .base import BaseRepository",
+            "from .exceptions import EntityNotFoundError",
+            "from ..models.${1:model_name} import ${2:ModelClass}",
+            "",
+            "class ${2:ModelClass}Repository(BaseRepository[${2:ModelClass}]):",
+            "    \"\"\"",
+            "    Repository for ${2:ModelClass} operations",
+            "    \"\"\"",
+            "    ",
+            "    def __init__(self, session: Session):",
+            "        super().__init__(${2:ModelClass}, session)",
+            "    ",
+            "    def get_by_${3:field}(self, ${3:field}: ${4:type}) -> Optional[${2:ModelClass}]:",
+            "        \"\"\"Get ${2:ModelClass} by ${3:field}\"\"\"",
+            "        statement = select(${2:ModelClass}).where(${2:ModelClass}.${3:field} == ${3:field})",
+            "        result = self.session.exec(statement).first()",
+            "        return result",
+            "    ",
+            "    def get_active_${5:entities}(self) -> List[${2:ModelClass}]:",
+            "        \"\"\"Get all active ${5:entities}\"\"\"",
+            "        statement = select(${2:ModelClass}).where(${2:ModelClass}.is_active == True)",
+            "        result = self.session.exec(statement).all()",
+            "        return list(result)",
+            "$0"
+        ],
+        "description": "Repository pattern implementation"
+    },
+    "SQLModel Class": {
+        "prefix": "qa-model",
+        "body": [
+            "from datetime import datetime",
+            "from typing import Optional",
+            "from sqlmodel import SQLModel, Field",
+            "from ..base import TimestampMixin, AuditMixin",
+            "",
+            "class ${1:ModelName}(SQLModel, TimestampMixin, AuditMixin, table=True):",
+            "    \"\"\"",
+            "    ${2:Model description}",
+            "    \"\"\"",
+            "    __tablename__ = \"${3:table_name}\"",
+            "    ",
+            "    # Primary key",
+            "    id: Optional[int] = Field(default=None, primary_key=True)",
+            "    ",
+            "    # Fields",
+            "    ${4:field_name}: ${5:field_type} = Field(${6:default_value}, description=\"${7:Field description}\")",
+            "    ",
+            "    # Indexes and constraints",
+            "    __table_args__ = (",
+            "        # Add indexes here",
+            "    )",
+            "$0"
+        ],
+        "description": "SQLModel class with mixins"
+    },
+    "Test Case": {
+        "prefix": "qa-test",
+        "body": [
+            "def test_${1:test_name}(self, ${2:fixtures}):",
+            "    \"\"\"Test ${3:description}\"\"\"",
+            "    # Arrange",
+            "    ${4:setup_code}",
+            "    ",
+            "    # Act",
+            "    result = ${5:code_under_test}",
+            "    ",
+            "    # Assert",
+            "    assert ${6:assertion}",
+            "    ${7:additional_assertions}",
+            "$0"
+        ],
+        "description": "Test case template with Arrange-Act-Assert pattern"
+    },
+    "Async Function": {
+        "prefix": "qa-async",
+        "body": [
+            "async def ${1:function_name}(${2:params}) -> ${3:ReturnType}:",
+            "    \"\"\"${4:Function description}\"\"\"",
+            "    try:",
+            "        ${5:implementation}",
+            "        return ${6:result}",
+            "    except Exception as e:",
+            "        logger.error(f\"Error in ${1:function_name}: {e}\")",
+            "        raise",
+            "$0"
+        ],
+        "description": "Async function with error handling"
+    },
+    "Logger Setup": {
+        "prefix": "qa-logger",
+        "body": [
+            "from src.logging_config import get_logger",
+            "",
+            "logger = get_logger(\"${1:ComponentName}\")",
+            "$0"
+        ],
+        "description": "Logger setup with QA Intelligence config"
+    },
+    "Config Model": {
+        "prefix": "qa-config",
+        "body": [
+            "from typing import Optional",
+            "from pydantic import BaseModel, Field",
+            "",
+            "class ${1:ConfigName}(BaseModel):",
+            "    \"\"\"${2:Configuration description}\"\"\"",
+            "    ",
+            "    ${3:field_name}: ${4:field_type} = Field(",
+            "        default=${5:default_value},",
+            "        description=\"${6:Field description}\"",
+            "    )",
+            "    ",
+            "    class Config:",
+            "        env_prefix = \"${7:PREFIX}_\"",
+            "        case_sensitive = False",
+            "$0"
+        ],
+        "description": "Pydantic configuration model"
+    },
+    "Exception Class": {
+        "prefix": "qa-exception",
+        "body": [
+            "class ${1:ExceptionName}(Exception):",
+            "    \"\"\"${2:Exception description}\"\"\"",
+            "    ",
+            "    def __init__(self, message: str = \"${3:Default message}\", **kwargs):",
+            "        self.message = message",
+            "        self.context = kwargs",
+            "        super().__init__(self.message)",
+            "    ",
+            "    def __str__(self) -> str:",
+            "        if self.context:",
+            "            return f\"{self.message} (context: {self.context})\"",
+            "        return self.message",
+            "$0"
+        ],
+        "description": "Custom exception with context"
+    }
+}

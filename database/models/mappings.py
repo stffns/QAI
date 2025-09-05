@@ -1,7 +1,7 @@
 """
 Application Country Mapping Model - SQLModel model for app-country relationships
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 
@@ -61,7 +61,7 @@ class ApplicationCountryMapping(SQLModel, table=True):
         if not self.is_active:
             return False
         
-        if self.deprecated_date and self.deprecated_date <= datetime.utcnow():
+        if self.deprecated_date and self.deprecated_date <= datetime.now(timezone.utc):
             return False
         
         return True
@@ -77,7 +77,7 @@ class ApplicationCountryMapping(SQLModel, table=True):
         if not self.launched_date:
             return None
         
-        end_date = self.deprecated_date or datetime.utcnow()
+        end_date = self.deprecated_date or datetime.now(timezone.utc)
         return (end_date - self.launched_date).days
     
     def deprecate(self, deprecation_date: Optional[datetime] = None) -> None:
@@ -87,9 +87,9 @@ class ApplicationCountryMapping(SQLModel, table=True):
         Args:
             deprecation_date: When to deprecate (default: now)
         """
-        self.deprecated_date = deprecation_date or datetime.utcnow()
+        self.deprecated_date = deprecation_date or datetime.now(timezone.utc)
         self.is_active = False
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def reactivate(self) -> None:
         """
@@ -97,7 +97,7 @@ class ApplicationCountryMapping(SQLModel, table=True):
         """
         self.deprecated_date = None
         self.is_active = True
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     @classmethod
     def create_sample_data(cls, apps: list, countries: list) -> list:

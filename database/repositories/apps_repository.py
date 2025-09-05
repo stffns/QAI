@@ -36,15 +36,15 @@ class AppsRepository(BaseRepository[Apps]):
     
     def search_by_name(self, name_pattern: str) -> List[Apps]:
         """Search applications by name pattern (case-insensitive)"""
-        # Use SQL text for ILIKE functionality
-        statement = select(Apps).where(text(f"app_name ILIKE '%{name_pattern}%'"))
+        # Use parameterized query for security - avoid SQL injection
+        statement = select(Apps).where(func.lower(Apps.app_name).like(func.lower(f"%{name_pattern}%")))
         result = self.session.exec(statement).all()
         return list(result)
     
     def get_apps_by_description_keyword(self, keyword: str) -> List[Apps]:
         """Find applications containing a keyword in their description"""
         statement = select(Apps).where(
-            text(f"description ILIKE '%{keyword}%'"),
+            func.lower(Apps.description).like(func.lower(f"%{keyword}%")),
             Apps.is_active == True
         )
         result = self.session.exec(statement).all()
