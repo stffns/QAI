@@ -61,8 +61,14 @@ class ApplicationCountryMapping(SQLModel, table=True):
         if not self.is_active:
             return False
         
-        if self.deprecated_date and self.deprecated_date <= datetime.now(timezone.utc):
-            return False
+        if self.deprecated_date:
+            # Ensure both dates are timezone-aware for proper comparison
+            deprecated_date = self.deprecated_date
+            if deprecated_date.tzinfo is None:
+                deprecated_date = deprecated_date.replace(tzinfo=timezone.utc)
+            
+            if deprecated_date <= datetime.now(timezone.utc):
+                return False
         
         return True
     
@@ -77,8 +83,19 @@ class ApplicationCountryMapping(SQLModel, table=True):
         if not self.launched_date:
             return None
         
-        end_date = self.deprecated_date or datetime.now(timezone.utc)
-        return (end_date - self.launched_date).days
+        # Ensure both dates are timezone-aware for proper comparison
+        launch_date = self.launched_date
+        if launch_date.tzinfo is None:
+            launch_date = launch_date.replace(tzinfo=timezone.utc)
+        
+        end_date = self.deprecated_date
+        if end_date:
+            if end_date.tzinfo is None:
+                end_date = end_date.replace(tzinfo=timezone.utc)
+        else:
+            end_date = datetime.now(timezone.utc)
+        
+        return (end_date - launch_date).days
     
     def deprecate(self, deprecation_date: Optional[datetime] = None) -> None:
         """

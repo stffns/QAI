@@ -4,10 +4,7 @@
         {
             "label": "🚀 Start QA Agent (Chat)",
             "type": "shell",
-            "command": "python",
-            "args": [
-                "run_qa_agent.py"
-            ],
+            "command": "source .venv/bin/activate && python run_qa_agent.py",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -28,10 +25,7 @@
         {
             "label": "🌐 Start WebSocket Server",
             "type": "shell",
-            "command": "python",
-            "args": [
-                "run_websocket_server.py"
-            ],
+            "command": "source .venv/bin/activate && python run_websocket_server.py",
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -261,10 +255,7 @@
         {
             "label": "🔄 Database Migration",
             "type": "shell",
-            "command": "python",
-            "args": [
-                "database/migrations/add_solid_fields.py"
-            ],
+            "command": "source .venv/bin/activate && python database/migrations/add_solid_fields.py",
             "group": "build",
             "presentation": {
                 "echo": true,

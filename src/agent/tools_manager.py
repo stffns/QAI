@@ -131,6 +131,36 @@ class ToolsManager:
                     "max_file_size": "10MB",
                     "sandbox_mode": True
                 }
+            ),
+            "qa_database_stats": ToolConfig(
+                name="qa_database_stats",
+                enabled=tools_config.get("database_tools", True),
+                essential=False,
+                config={}
+            ),
+            "qa_apps": ToolConfig(
+                name="qa_apps",
+                enabled=tools_config.get("database_tools", True),
+                essential=False,
+                config={}
+            ),
+            "qa_countries": ToolConfig(
+                name="qa_countries",
+                enabled=tools_config.get("database_tools", True),
+                essential=False,
+                config={}
+            ),
+            "qa_mappings": ToolConfig(
+                name="qa_mappings",
+                enabled=tools_config.get("database_tools", True),
+                essential=False,
+                config={}
+            ),
+            "qa_search": ToolConfig(
+                name="qa_search",
+                enabled=tools_config.get("database_tools", True),
+                essential=False,
+                config={}
             )
         }
         
@@ -209,6 +239,8 @@ class ToolsManager:
                 tool = self._load_calculator_tool(tool_config)
             elif tool_config.name == "file_operations":
                 tool = self._load_file_tools(tool_config)
+            elif tool_config.name in ["qa_database_stats", "qa_apps", "qa_countries", "qa_mappings", "qa_search"]:
+                tool = self._load_database_tool(tool_config)
             else:
                 raise ToolLoadError(f"Unknown tool: {tool_config.name}")
             
@@ -314,6 +346,43 @@ class ToolsManager:
         except ImportError as e:
             raise ToolLoadError(f"File operations tools not available: {e}")
 
+    def _load_database_tool(self, tool_config: ToolConfig):
+        """Load individual database tool for QA Intelligence using Agno @tool decorator"""
+        try:
+            # Import the database tools with proper paths
+            import sys
+            import os
+            
+            # Add the project root to the path
+            project_root = os.path.join(os.path.dirname(__file__), "..", "..")
+            if project_root not in sys.path:
+                sys.path.append(project_root)
+            
+            from src.agent.tools.database_tools import (
+                database_stats,
+                list_apps,
+                list_countries,
+                list_mappings,
+                search_qa_data
+            )
+            
+            # Map tool config name to actual function
+            tool_mapping = {
+                "qa_database_stats": database_stats,
+                "qa_apps": list_apps,
+                "qa_countries": list_countries,
+                "qa_mappings": list_mappings,
+                "qa_search": search_qa_data
+            }
+            
+            if tool_config.name not in tool_mapping:
+                raise ToolLoadError(f"Unknown database tool: {tool_config.name}")
+            
+            return tool_mapping[tool_config.name]
+            
+        except ImportError as e:
+            raise ToolLoadError(f"Database tool {tool_config.name} not available: {e}")
+
     def _validate_tool(self, tool: Any, tool_name: str) -> None:
         """
         Validate that a tool meets Agno compatibility requirements
@@ -330,7 +399,8 @@ class ToolsManager:
             callable(tool),
             hasattr(tool, "run") and callable(getattr(tool, "run")),
             isinstance(tool, dict),
-            hasattr(tool, "functions")  # Agno tools have this
+            hasattr(tool, "functions"),  # Agno tools have this
+            hasattr(tool, "entrypoint") and callable(getattr(tool, "entrypoint"))  # Agno Function objects
         ]):
             raise ToolLoadError(f"Tool {tool_name} doesn't implement required interface")
         
