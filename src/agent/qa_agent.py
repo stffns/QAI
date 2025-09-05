@@ -61,6 +61,9 @@ perf_logger = get_performance_logger()
 
 class ConfigValidator(Protocol):
     """Protocol for configuration validation"""
+    
+    # Config attributes
+    tools: Any  # ToolsConfig object with get_enabled_tools() method
 
     def validate_config(self) -> None:
         """
@@ -166,7 +169,7 @@ class QAAgent:
             # Initialize component managers with dependency injection support
             with LogStep("Component managers setup", "QAAgent"):
                 self.model_manager = model_manager or ModelManager(self.config)
-                self.tools_manager = tools_manager or ToolsManager(self.config)
+                self.tools_manager = tools_manager or ToolsManager(self.config.tools)
                 self.storage_manager = storage_manager or StorageManager(self.config)
 
             logger.info(
@@ -285,14 +288,16 @@ class QAAgent:
             tool_info = {"index": i, "type": type(tool).__name__}
 
             # Most tools should be callable OR have a 'run' method OR be dict-like OR have 'functions' attribute (agno tools)
+            # OR be agno Function objects with callable entrypoint
             is_callable = callable(tool)
             has_run_method = hasattr(tool, "run") and callable(getattr(tool, "run"))
             is_dict_like = isinstance(tool, dict)
             has_functions = hasattr(tool, "functions")  # agno tools have this
+            is_agno_function = hasattr(tool, "entrypoint") and callable(getattr(tool, "entrypoint"))  # agno Function objects
 
-            if not (is_callable or has_run_method or is_dict_like or has_functions):
+            if not (is_callable or has_run_method or is_dict_like or has_functions or is_agno_function):
                 invalid_tools.append(
-                    f"Tool {i}: not callable, no 'run' method, not dict-like, and no 'functions' attribute ({type(tool).__name__})"
+                    f"Tool {i}: not callable, no 'run' method, not dict-like, no 'functions' attribute, and no callable 'entrypoint' ({type(tool).__name__})"
                 )
                 continue
 
@@ -319,6 +324,7 @@ class QAAgent:
                 "has_run": has_run_method,
                 "is_dict": is_dict_like,
                 "has_functions": has_functions,
+                "is_agno_function": is_agno_function,
             }
 
             logger.debug(

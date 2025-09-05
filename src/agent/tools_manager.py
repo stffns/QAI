@@ -87,14 +87,17 @@ class ToolsManager:
         Returns:
             Dictionary of tool configurations
         """
-        tools_config = self.config.get_enabled_tools()
+        enabled_tools = self.config.get_enabled_tools()
         parsed_configs = {}
+        
+        # Convert list of enabled tools to a lookup dict
+        enabled_tool_names = {tool.name: tool.enabled for tool in enabled_tools}
         
         # Default tool configurations following Agno patterns
         default_tools = {
             "web_search": ToolConfig(
                 name="web_search",
-                enabled=tools_config.get("web_search", False),
+                enabled=enabled_tool_names.get("web_search", False),
                 essential=False,
                 config={
                     "max_results": 5,
@@ -105,7 +108,7 @@ class ToolsManager:
             ),
             "python_execution": ToolConfig(
                 name="python_execution", 
-                enabled=tools_config.get("python_execution", False),
+                enabled=enabled_tool_names.get("python_execution", False),
                 essential=False,
                 config={
                     "timeout": 30,
@@ -115,7 +118,7 @@ class ToolsManager:
             ),
             "calculator": ToolConfig(
                 name="calculator",
-                enabled=tools_config.get("calculator", False), 
+                enabled=enabled_tool_names.get("calculator", False), 
                 essential=False,
                 config={
                     "precision": 10,
@@ -124,7 +127,7 @@ class ToolsManager:
             ),
             "file_operations": ToolConfig(
                 name="file_operations",
-                enabled=tools_config.get("file_operations", False),
+                enabled=enabled_tool_names.get("file_operations", False),
                 essential=False,
                 config={
                     "allowed_extensions": [".txt", ".json", ".csv", ".md"],
@@ -134,31 +137,56 @@ class ToolsManager:
             ),
             "qa_database_stats": ToolConfig(
                 name="qa_database_stats",
-                enabled=tools_config.get("database_tools", True),
+                enabled=enabled_tool_names.get("qa_database_stats", True),
                 essential=False,
                 config={}
             ),
             "qa_apps": ToolConfig(
                 name="qa_apps",
-                enabled=tools_config.get("database_tools", True),
+                enabled=enabled_tool_names.get("qa_apps", True),
                 essential=False,
                 config={}
             ),
             "qa_countries": ToolConfig(
                 name="qa_countries",
-                enabled=tools_config.get("database_tools", True),
+                enabled=enabled_tool_names.get("qa_countries", True),
                 essential=False,
                 config={}
             ),
             "qa_mappings": ToolConfig(
                 name="qa_mappings",
-                enabled=tools_config.get("database_tools", True),
+                enabled=enabled_tool_names.get("qa_mappings", True),
                 essential=False,
                 config={}
             ),
             "qa_search": ToolConfig(
                 name="qa_search",
-                enabled=tools_config.get("database_tools", True),
+                enabled=enabled_tool_names.get("qa_search", True),
+                essential=False,
+                config={}
+            ),
+            # SQL Tools for advanced database analysis
+            "sql_execute_query": ToolConfig(
+                name="sql_execute_query",
+                enabled=enabled_tool_names.get("sql_execute_query", True),
+                essential=False,
+                config={}
+            ),
+            "sql_analyze_table": ToolConfig(
+                name="sql_analyze_table",
+                enabled=enabled_tool_names.get("sql_analyze_table", True),
+                essential=False,
+                config={}
+            ),
+            "sql_explore_database": ToolConfig(
+                name="sql_explore_database",
+                enabled=enabled_tool_names.get("sql_explore_database", True),
+                essential=False,
+                config={}
+            ),
+            "sql_qa_analytics": ToolConfig(
+                name="sql_qa_analytics",
+                enabled=enabled_tool_names.get("sql_qa_analytics", True),
                 essential=False,
                 config={}
             )
@@ -166,7 +194,7 @@ class ToolsManager:
         
         for tool_name, default_config in default_tools.items():
             # Merge with user configuration if provided
-            user_config = tools_config.get(f"{tool_name}_config", {})
+            user_config = {}  # For now, use defaults
             if isinstance(user_config, dict) and default_config.config:
                 default_config.config.update(user_config)
             
@@ -241,6 +269,8 @@ class ToolsManager:
                 tool = self._load_file_tools(tool_config)
             elif tool_config.name in ["qa_database_stats", "qa_apps", "qa_countries", "qa_mappings", "qa_search"]:
                 tool = self._load_database_tool(tool_config)
+            elif tool_config.name in ["sql_execute_query", "sql_analyze_table", "sql_explore_database", "sql_qa_analytics"]:
+                tool = self._load_sql_tool(tool_config)
             else:
                 raise ToolLoadError(f"Unknown tool: {tool_config.name}")
             
@@ -382,6 +412,41 @@ class ToolsManager:
             
         except ImportError as e:
             raise ToolLoadError(f"Database tool {tool_config.name} not available: {e}")
+
+    def _load_sql_tool(self, tool_config: ToolConfig):
+        """Load individual SQL tool for advanced database analysis using Agno SQLTools"""
+        try:
+            # Import the SQL tools with proper paths
+            import sys
+            import os
+            
+            # Add the project root to the path
+            project_root = os.path.join(os.path.dirname(__file__), "..", "..")
+            if project_root not in sys.path:
+                sys.path.append(project_root)
+            
+            from src.agent.tools.sql_tools import (
+                sql_execute_query,
+                sql_analyze_table,
+                sql_explore_database,
+                sql_qa_analytics
+            )
+            
+            # Map tool config name to actual function
+            tool_mapping = {
+                "sql_execute_query": sql_execute_query,
+                "sql_analyze_table": sql_analyze_table,
+                "sql_explore_database": sql_explore_database,
+                "sql_qa_analytics": sql_qa_analytics
+            }
+            
+            if tool_config.name not in tool_mapping:
+                raise ToolLoadError(f"Unknown SQL tool: {tool_config.name}")
+            
+            return tool_mapping[tool_config.name]
+            
+        except ImportError as e:
+            raise ToolLoadError(f"SQL tool {tool_config.name} not available: {e}")
 
     def _validate_tool(self, tool: Any, tool_name: str) -> None:
         """

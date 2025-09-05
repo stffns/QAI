@@ -66,6 +66,14 @@ tools:
     name: qa_mappings
   - enabled: true
     name: qa_search
+  - enabled: true
+    name: sql_execute_query
+  - enabled: true
+    name: sql_analyze_table
+  - enabled: true
+    name: sql_explore_database
+  - enabled: true
+    name: sql_qa_analytics
 
 reasoning:
   enabled: true
