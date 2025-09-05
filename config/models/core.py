@@ -538,7 +538,11 @@ class ToolsConfig(BaseModel):
             ToolConfig(name="sql_execute_query", enabled=True, timeout=30),
             ToolConfig(name="sql_analyze_table", enabled=True, timeout=30),
             ToolConfig(name="sql_explore_database", enabled=True, timeout=30),
-            ToolConfig(name="sql_qa_analytics", enabled=True, timeout=30)
+            ToolConfig(name="sql_qa_analytics", enabled=True, timeout=30),
+            # API tools (enabled per YAML config)
+            ToolConfig(name="api_test_endpoint", enabled=True, timeout=30),
+            ToolConfig(name="api_health_check", enabled=True, timeout=15),
+            ToolConfig(name="api_performance_test", enabled=True, timeout=60)
         ],
         description="List of available tools with their configurations"
     )

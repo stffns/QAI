@@ -74,6 +74,12 @@ tools:
     name: sql_explore_database
   - enabled: true
     name: sql_qa_analytics
+  - enabled: true
+    name: api_test_endpoint
+  - enabled: true
+    name: api_health_check
+  - enabled: true
+    name: api_performance_test
 
 reasoning:
   enabled: true

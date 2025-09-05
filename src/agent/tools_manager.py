@@ -189,6 +189,25 @@ class ToolsManager:
                 enabled=enabled_tool_names.get("sql_qa_analytics", True),
                 essential=False,
                 config={}
+            ),
+            # API Tools for endpoint testing and monitoring
+            "api_test_endpoint": ToolConfig(
+                name="api_test_endpoint",
+                enabled=enabled_tool_names.get("api_test_endpoint", True),
+                essential=False,
+                config={}
+            ),
+            "api_health_check": ToolConfig(
+                name="api_health_check",
+                enabled=enabled_tool_names.get("api_health_check", True),
+                essential=False,
+                config={}
+            ),
+            "api_performance_test": ToolConfig(
+                name="api_performance_test",
+                enabled=enabled_tool_names.get("api_performance_test", True),
+                essential=False,
+                config={}
             )
         }
         
@@ -271,6 +290,8 @@ class ToolsManager:
                 tool = self._load_database_tool(tool_config)
             elif tool_config.name in ["sql_execute_query", "sql_analyze_table", "sql_explore_database", "sql_qa_analytics"]:
                 tool = self._load_sql_tool(tool_config)
+            elif tool_config.name in ["api_test_endpoint", "api_health_check", "api_performance_test"]:
+                tool = self._load_api_tool(tool_config)
             else:
                 raise ToolLoadError(f"Unknown tool: {tool_config.name}")
             
@@ -447,6 +468,39 @@ class ToolsManager:
             
         except ImportError as e:
             raise ToolLoadError(f"SQL tool {tool_config.name} not available: {e}")
+
+    def _load_api_tool(self, tool_config: ToolConfig) -> Any:
+        """Load API testing tools with enhanced QA functionality"""
+        try:
+            # Add the project root to the path if needed
+            import sys
+            import os
+            
+            # Add the project root to the path
+            project_root = os.path.join(os.path.dirname(__file__), "..", "..")
+            if project_root not in sys.path:
+                sys.path.append(project_root)
+            
+            from src.agent.tools.api_tools import (
+                api_test_endpoint,
+                api_health_check,
+                api_performance_test
+            )
+            
+            # Map tool config name to actual function
+            tool_mapping = {
+                "api_test_endpoint": api_test_endpoint,
+                "api_health_check": api_health_check,
+                "api_performance_test": api_performance_test
+            }
+            
+            if tool_config.name not in tool_mapping:
+                raise ToolLoadError(f"Unknown API tool: {tool_config.name}")
+            
+            return tool_mapping[tool_config.name]
+            
+        except ImportError as e:
+            raise ToolLoadError(f"API tool {tool_config.name} not available: {e}")
 
     def _validate_tool(self, tool: Any, tool_name: str) -> None:
         """
