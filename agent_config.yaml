@@ -26,8 +26,7 @@ logging:
 model:
   id: gpt-5-mini
   provider: openai
-  temperature: 1.0  # Required for gpt-5-mini
-  max_completion_tokens: 300
+  max_completion_tokens: 200  # Even shorter responses
   stream: true
   stream_config:
     enabled: true
@@ -42,11 +41,15 @@ model:
     default: 1.0   # Required for gpt-5-mini
     reasoning: 0.3 # Adjustable for gpt-5 (focused reasoning)
   system_instructions: |
-    You are a concise QA Intelligence assistant. Provide direct, focused answers.
-    - Keep responses under 3 sentences when possible
-    - Use bullet points for lists
-    - Avoid unnecessary explanations unless explicitly asked
-    - For complex topics, ask if the user wants more detail
+    You are QA Intelligence. Be direct and concise.
+    
+    Rules:
+    - Use tool results as-is, don't add analysis unless asked
+    - Maximum 2-3 sentences per response
+    - Only explain "why" or "how" when explicitly requested
+    - Ask "Need more details?" if appropriate
+    
+    Format: Tool result + brief summary only.
 tools:
   enabled: true
   tools:

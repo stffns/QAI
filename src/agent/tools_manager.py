@@ -87,11 +87,11 @@ class ToolsManager:
         Returns:
             Dictionary of tool configurations
         """
-        enabled_tools = self.config.get_enabled_tools()
+        # Get enabled tools as a dictionary
+        enabled_tool_names = self.config.get_enabled_tools()
         parsed_configs = {}
         
-        # Convert list of enabled tools to a lookup dict
-        enabled_tool_names = {tool.name: tool.enabled for tool in enabled_tools}
+        # enabled_tool_names is already a dict of {tool_name: enabled_status}
         
         # Default tool configurations following Agno patterns
         default_tools = {
