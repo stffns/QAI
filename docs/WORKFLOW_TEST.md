@@ -42,10 +42,10 @@ git push -u origin feature/nombre-descriptivo
 
 ## ✅ Protecciones Configuradas
 
-- **main**: Requiere PR reviews, admin enforcement
-- **develop**: Protección básica contra force pushes
-- **GitHub Actions**: CI/CD automático en cada PR
-- **Templates**: Estructura consistente para PRs e issues
+- **main**: Requires PR reviews, admin enforcement
+- **develop**: Basic protection against force pushes
+- **GitHub Actions**: Automatic CI/CD on each PR
+- **Templates**: Consistent structure for PRs and issues
 
 ## 🤖 Automatización QA
 
