@@ -1,7 +1,7 @@
 """
 Apps Model - SQLModel model for applications
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 
@@ -29,7 +29,7 @@ class Apps(SQLModel, table=True):
     
     # Status and metadata
     is_active: bool = Field(default=True, description="Whether the application is active")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Creation timestamp")
     updated_at: Optional[datetime] = Field(default=None, description="Last update timestamp")
     
     # Relationships

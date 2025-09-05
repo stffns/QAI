@@ -2,7 +2,7 @@
 Mappings Repository - Repository implementation for ApplicationCountryMapping model
 """
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlmodel import Session, select, text
 from sqlalchemy import func
 
@@ -110,7 +110,7 @@ class MappingsRepository(BaseRepository[ApplicationCountryMapping]):
         if not mapping:
             return False
         
-        mapping.deprecated_date = deprecation_date or datetime.utcnow()
+        mapping.deprecated_date = deprecation_date or datetime.now(timezone.utc)
         self.save(mapping)
         return True
     

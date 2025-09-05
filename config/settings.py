@@ -130,20 +130,30 @@ class Settings(BaseSettings):
             cur_value = current.get(key)
             def_value = defaults.get(key)
 
-            # If ENV override (current != default), keep current
-            if cur_value != def_value and cur_value is not None and not isinstance(cur_value, dict):
+            # Process each key using helper methods
+            if self._should_keep_current_value(cur_value, def_value):
                 result[key] = cur_value
-                continue
-
-            # Recurse into dicts
-            if isinstance(yaml_value, dict) and isinstance(cur_value, dict):
-                nested_defaults = def_value if isinstance(def_value, dict) else {}
-                result[key] = self._merge_with_env_priority(cur_value, yaml_value, nested_defaults)
+            elif self._should_merge_nested_dict(yaml_value, cur_value):
+                result[key] = self._merge_nested_dict(cur_value, yaml_value, def_value)
             else:
-                # Lists or scalars: prefer YAML when present
                 result[key] = yaml_value
 
         return result
+    
+    def _should_keep_current_value(self, current_value: Any, default_value: Any) -> bool:
+        """Check if current value should be kept (ENV override)"""
+        return (current_value != default_value and 
+                current_value is not None and 
+                not isinstance(current_value, dict))
+    
+    def _should_merge_nested_dict(self, yaml_value: Any, current_value: Any) -> bool:
+        """Check if values should be merged as nested dictionaries"""
+        return isinstance(yaml_value, dict) and isinstance(current_value, dict)
+    
+    def _merge_nested_dict(self, current_value: Any, yaml_value: Dict[str, Any], default_value: Any) -> Dict[str, Any]:
+        """Merge nested dictionary values recursively"""
+        nested_defaults = default_value if isinstance(default_value, dict) else {}
+        return self._merge_with_env_priority(current_value, yaml_value, nested_defaults)
     
     def _load_yaml_config(self) -> Dict[str, Any]:
         """Load configuration from YAML file"""

@@ -32,7 +32,7 @@ class ApplicationCountryMapping(SQLModel, table=True):
     deprecated_date: Optional[datetime] = Field(default=None, description="When the app was deprecated in this country")
     
     # Metadata
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Creation timestamp")
     updated_at: Optional[datetime] = Field(default=None, description="Last update timestamp")
     
     # Relationships

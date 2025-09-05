@@ -42,7 +42,7 @@ class CountriesRepository(BaseRepository[Countries]):
     
     def search_by_name(self, name_pattern: str) -> List[Countries]:
         """Search countries by name pattern (case-insensitive)"""
-        statement = select(Countries).where(text(f"country_name ILIKE '%{name_pattern}%'"))
+        statement = select(Countries).where(func.lower(Countries.country_name).contains(func.lower(name_pattern)))
         result = self.session.exec(statement).all()
         return list(result)
     

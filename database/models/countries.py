@@ -1,7 +1,7 @@
 """
 Countries Model - SQLModel model for countries
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 
@@ -30,7 +30,7 @@ class Countries(SQLModel, table=True):
     
     # Status and metadata
     is_active: bool = Field(default=True, description="Whether the country is active")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Creation timestamp")
     updated_at: Optional[datetime] = Field(default=None, description="Last update timestamp")
     
     # Relationships

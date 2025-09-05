@@ -202,6 +202,15 @@ class WebSocketServer:
             self.logger.error(f"Error during server shutdown: {e}")
             raise WebSocketServerError(f"Server shutdown failed: {e}")
     
+    def _manager_supports_streaming(self) -> bool:
+        """
+        Check if the manager supports streaming functionality.
+        
+        Returns:
+            bool: True if streaming is supported, False otherwise
+        """
+        return hasattr(self.manager, 'process_chat_message_stream') and callable(getattr(self.manager, 'process_chat_message_stream'))
+    
     async def _handle_connection(self, websocket: ServerConnection, path: str = "/") -> None:
         """
         Handle new WebSocket connection.
@@ -430,7 +439,7 @@ class WebSocketServer:
                     raise ValueError("Expected ChatMessagePayload")
                 
                 # Check if streaming is available and process accordingly
-                if hasattr(self.manager, 'process_chat_message_stream') and callable(getattr(self.manager, 'process_chat_message_stream')):
+                if self._manager_supports_streaming():
                     # Use streaming version
                     self.logger.info(f"📡 Processing chat message with streaming for session {session_id}")
                     
