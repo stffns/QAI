@@ -223,26 +223,237 @@ def api_health_check(url: str, expected_status: int = 200) -> str:
 
 
 @tool
-def api_performance_test(url: str, iterations: int = 5) -> str:
+def api_performance_test(
+    command: str = "Test endpoint", 
+    url: Optional[str] = None,
+    app_code: Optional[str] = None,
+    env_code: Optional[str] = None,
+    country_code: Optional[str] = None,
+    virtual_users: int = 3,
+    duration_minutes: float = 1.0,
+    agent_rps: Optional[float] = None
+) -> str:
     """
-    Quick API performance test - Returns ONLY the performance summary, no analysis needed.
+    Advanced API performance test using QA Intelligence Performance Engine V2.
+    
+    Supports both simple URL testing and advanced database-driven testing.
     
     Args:
-        url: API endpoint URL
-        iterations: Number of test requests (default: 5)
+        command: Natural language command (e.g., "Probar EVA_RO en STA con 5 usuarios")
+        url: Direct URL to test (optional, overrides database lookup)
+        app_code: Application code (e.g., "EVA_RO", "PAYROLL")
+        env_code: Environment code (e.g., "STA", "TEST", "PROD")
+        country_code: Country code (e.g., "RO", "FR", "BE")
+        virtual_users: Number of virtual users (default: 3)
+        duration_minutes: Test duration in minutes, supports decimals (default: 1.0)
+        agent_rps: Custom RPS override (optional)
     
     Returns:
-        FINAL performance summary - no further analysis required
+        Performance test execution status and results summary
     """
     try:
-        result = qa_api_tools.performance_test(url, iterations)
+        # Import Performance Tool (SOLID Architecture - Phase 7)
+        from .performance_tool import PerformanceToolV2
         
-        # Return ONLY the essential performance info
-        return f"⚡ {url} → {result['rating']} ({result['success_rate']} success, avg {result['avg_time']})"
+        # Initialize tool
+        perf_tool = PerformanceToolV2()
+        
+        # If direct URL provided, create simple command
+        if url:
+            simple_command = f"Test {url} with {virtual_users} users for {duration_minutes} minutes"
+            if agent_rps:
+                simple_command += f" at {agent_rps} RPS"
+            
+            # Execute simple performance test
+            result_json = perf_tool.execute_performance_test(
+                command=simple_command,
+                virtual_users=virtual_users,
+                duration_minutes=duration_minutes,
+                agent_rps=agent_rps
+            )
+            
+        else:
+            # Build advanced command with database lookup
+            params = {}
+            if app_code:
+                params["app_code"] = app_code
+            if env_code:
+                params["env_code"] = env_code  
+            if country_code:
+                params["country_code"] = country_code
+            if agent_rps:
+                params["agent_rps"] = agent_rps
+                
+            result_json = perf_tool.execute_performance_test(
+                command=command,
+                virtual_users=virtual_users,
+                duration_minutes=duration_minutes,
+                **params
+            )
+        
+        # Parse result
+        import json
+        try:
+            result = json.loads(result_json)
+        except json.JSONDecodeError:
+            return f"❌ Performance test failed: Invalid response format"
+        
+        if result.get("success"):
+            execution_id = result.get("execution_id", "unknown")
+            status = result.get("status", "unknown")
+            estimated_duration = result.get("estimated_duration_minutes", "unknown")
+            rps_used = result.get("rps_resolved", "unknown")
+            
+            # Return execution summary
+            return (f"⚡ Performance test started successfully!\n"
+                   f"🆔 Execution ID: {execution_id}\n"
+                   f"📊 Status: {status}\n"
+                   f"⏱️ Estimated duration: {estimated_duration} minutes\n"
+                   f"🔥 RPS: {rps_used}\n"
+                   f"💡 Use get_execution_status({execution_id}) to check progress")
+        else:
+            error = result.get("error", "Unknown error")
+            return f"❌ Performance test failed: {error}"
+            
+    except ImportError:
+        # Fallback to simple test
+        return f"⚠️ Advanced performance testing not available. Using basic test for: {url or command}"
         
     except Exception as e:
-        return f"❌ {url} → Performance test failed: {str(e)}"
+        return f"❌ Performance test failed: {str(e)}"
+
+
+@tool
+def get_execution_status(execution_id: str) -> str:
+    """
+    Get status of a performance test execution.
+    
+    Args:
+        execution_id: Execution ID returned from api_performance_test
+    
+    Returns:
+        Current execution status and results (if completed)
+    """
+    try:
+        from .performance_tool import PerformanceToolV2
+        
+        perf_tool = PerformanceToolV2()
+        result_json = perf_tool.get_execution_status(execution_id)
+        
+        import json
+        try:
+            result = json.loads(result_json)
+        except json.JSONDecodeError:
+            return f"❌ Failed to get status: Invalid response format"
+        
+        if result.get("success"):
+            status = result.get("status", "unknown")
+            progress = result.get("progress_percentage", 0)
+            phase = result.get("current_phase", "unknown")
+            
+            # If completed, show results
+            if status in ["COMPLETED", "SUCCESS"]:
+                total_requests = result.get("total_requests", 0)
+                successful_requests = result.get("successful_requests", 0)
+                failed_requests = result.get("failed_requests", 0)
+                mean_time = result.get("mean_response_time", 0)
+                p95_time = result.get("p95_response_time", 0)
+                
+                success_rate = (successful_requests / total_requests * 100) if total_requests > 0 else 0
+                
+                return (f"✅ Performance test completed!\n"
+                       f"📊 Results: {total_requests} total requests\n"
+                       f"✅ Success rate: {success_rate:.1f}% ({successful_requests}/{total_requests})\n" 
+                       f"❌ Failed requests: {failed_requests}\n"
+                       f"⏱️ Mean response time: {mean_time}ms\n"
+                       f"📈 95th percentile: {p95_time}ms")
+            
+            elif status in ["FAILED", "ERROR"]:
+                error_details = result.get("error_details", "Unknown error")
+                return f"❌ Performance test failed: {error_details}"
+            
+            else:
+                return (f"🔄 Test in progress: {status}\n"
+                       f"📊 Progress: {progress}%\n"
+                       f"📍 Current phase: {phase}")
+        else:
+            error = result.get("error", "Unknown error")
+            return f"❌ Failed to get status: {error}"
+            
+    except ImportError:
+        return f"⚠️ Advanced performance monitoring not available for execution {execution_id}"
+        
+    except Exception as e:
+        return f"❌ Failed to get execution status: {str(e)}"
+
+
+@tool  
+def list_recent_performance_tests(limit: int = 5) -> str:
+    """
+    List recent performance test executions.
+    
+    Args:
+        limit: Maximum number of executions to show (default: 5)
+    
+    Returns:
+        List of recent performance test executions
+    """
+    try:
+        from .performance_tool import PerformanceToolV2
+        
+        perf_tool = PerformanceToolV2()
+        result_json = perf_tool.list_recent_executions(limit)
+        
+        import json
+        try:
+            result = json.loads(result_json)
+        except json.JSONDecodeError:
+            return f"❌ Failed to list executions: Invalid response format"
+        
+        if result.get("success"):
+            executions = result.get("executions", [])
+            
+            if not executions:
+                return "📝 No recent performance test executions found"
+            
+            output = f"📋 Recent performance test executions ({len(executions)}):\n\n"
+            
+            for i, execution in enumerate(executions, 1):
+                execution_id = execution.get("execution_id", "unknown")[:8]  # Short ID
+                status = execution.get("status", "unknown") 
+                command = execution.get("original_command", "Unknown command")
+                submitted_at = execution.get("submitted_at", "unknown")
+                
+                status_emoji = {
+                    "COMPLETED": "✅",
+                    "SUCCESS": "✅", 
+                    "FAILED": "❌",
+                    "ERROR": "❌",
+                    "RUNNING": "🔄",
+                    "PENDING": "⏳"
+                }.get(status, "❓")
+                
+                output += f"{i}. {status_emoji} {execution_id}... - {status}\n"
+                output += f"   Command: {command}\n"
+                output += f"   Started: {submitted_at}\n\n"
+            
+            return output.strip()
+        else:
+            error = result.get("error", "Unknown error")
+            return f"❌ Failed to list executions: {error}"
+            
+    except ImportError:
+        return "⚠️ Advanced performance monitoring not available"
+        
+    except Exception as e:
+        return f"❌ Failed to list executions: {str(e)}"
 
 
 # Export for toolchain discovery
-__all__ = ['api_test_endpoint', 'api_health_check', 'api_performance_test']
+__all__ = [
+    'api_test_endpoint', 
+    'api_health_check', 
+    'api_performance_test',
+    'get_execution_status',
+    'list_recent_performance_tests'
+]

@@ -1,0 +1,8 @@
+productId,category,price,name
+PROD_001,electronics,299.99,Laptop Pro
+PROD_002,electronics,599.99,Gaming Monitor
+PROD_003,books,19.99,Programming Guide
+PROD_004,clothing,49.99,T-Shirt
+PROD_005,electronics,149.99,Wireless Headphones
+PROD_006,home,89.99,Coffee Maker
+PROD_007,books,29.99,Data Science Manual

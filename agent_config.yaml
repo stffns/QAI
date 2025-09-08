@@ -17,7 +17,7 @@ interface:
     streaming:
       enabled: true
       show_cursor: true
-      cursor_style: "⚡"
+      cursor_style: "\u26A1"
       typing_delay: 0.02
 logging:
   enable_file_logging: true
@@ -26,30 +26,37 @@ logging:
 model:
   id: gpt-5-mini
   provider: openai
-  max_completion_tokens: 200  # Even shorter responses
+  max_completion_tokens: 200
   stream: true
   stream_config:
     enabled: true
     chunk_delay: 0.01
     show_thinking: false
   models:
-    nano: gpt-5-nano      # For very simple interactions
-    default: gpt-5-mini   # For normal responses  
-    reasoning: gpt-5      # For complex analysis
+    nano: gpt-5-nano
+    default: gpt-5-mini
+    reasoning: gpt-5
   temperatures:
-    nano: 1.0      # Required for gpt-5-nano
-    default: 1.0   # Required for gpt-5-mini
-    reasoning: 0.3 # Adjustable for gpt-5 (focused reasoning)
-  system_instructions: |
-    You are QA Intelligence. Be direct and concise.
-    
+    nano: 1.0
+    default: 1.0
+    reasoning: 0.3
+  system_instructions: 'You are QA Intelligence. Be direct and concise.
+
+
     Rules:
-    - Use tool results as-is, don't add analysis unless asked
+
+    - Use tool results as-is, don''t add analysis unless asked
+
     - Maximum 2-3 sentences per response
+
     - Only explain "why" or "how" when explicitly requested
+
     - Ask "Need more details?" if appropriate
-    
+
+
     Format: Tool result + brief summary only.
+
+    '
 tools:
   enabled: true
   tools:
@@ -83,33 +90,40 @@ tools:
     name: api_health_check
   - enabled: true
     name: api_performance_test
-
 reasoning:
   enabled: true
   type: agent
   triggers:
-    - "explain in detail"
-    - "analyze"
-    - "complex reasoning"
-    - "step by step"
-    - "comprehensive"
-    - "how does"
-    - "why does"
-    - "compare"
-    - "pros and cons"
+  - explain in detail
+  - analyze
+  - complex reasoning
+  - step by step
+  - comprehensive
+  - how does
+  - why does
+  - compare
+  - pros and cons
   auto_reasoning: false
   reasoning_model:
-    id: gpt-5          # Full GPT-5 for complex reasoning
-    temperature: 0.3   # Focused reasoning (adjustable for gpt-5)
+    id: gpt-5
+    temperature: 0.3
     max_completion_tokens: 1500
   nano_triggers:
-    - "hello"
-    - "hi"
-    - "thanks"
-    - "ok"
-    - "yes"
-    - "bye"
-    - "thank you"
-    - "no"
-    - "good"
-    - "bye"
+  - hello
+  - hi
+  - thanks
+  - ok
+  - 'yes'
+  - bye
+  - thank you
+  - 'no'
+  - good
+  - bye
+rag:
+  database_path: data/qa_intelligence_rag.db
+  version: pure_v2
+  migration_date: '20250908_111143'
+  collections_enabled: true
+  default_embedding_model: text-embedding-3-small
+  analytics_enabled: true
+  cache_enabled: true

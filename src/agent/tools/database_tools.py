@@ -15,8 +15,14 @@ try:
         get_all_apps,
         get_all_countries,
         get_all_mappings,
-        search_database
+    search_database,
+    get_app_countries as _validator_get_app_countries,
+    get_country_apps as _validator_get_country_apps,
     )
+    # Ensure ApplicationEndpoint model is registered with SQLAlchemy before queries run
+    # to avoid mapper relationship resolution errors during tool execution.
+    from database.models.application_endpoints import ApplicationEndpoint  # noqa: F401
+    from database.models.environments import Environments  # noqa: F401
 except ImportError:
     import sys
     import os
@@ -26,8 +32,12 @@ except ImportError:
         get_all_apps,
         get_all_countries,
         get_all_mappings,
-        search_database
+    search_database,
+    get_app_countries as _validator_get_app_countries,
+    get_country_apps as _validator_get_country_apps,
     )
+    from database.models.application_endpoints import ApplicationEndpoint  # noqa: F401
+    from database.models.environments import Environments  # noqa: F401
 
 
 # Raw functions for direct calling (these are just aliases to the originals)
@@ -172,7 +182,7 @@ def get_app_countries(app_code: str) -> str:
     Returns:
         str: JSON string with app's deployment countries
     """
-    return search_database(app_code, "mappings")
+    return _validator_get_app_countries(app_code)
 
 
 @tool(
@@ -190,4 +200,4 @@ def get_country_deployments(country_code: str) -> str:
     Returns:
         str: JSON string with country's deployed apps
     """
-    return search_database(country_code, "mappings")
+    return _validator_get_country_apps(country_code)

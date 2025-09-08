@@ -169,7 +169,7 @@ class QAAgent:
             # Initialize component managers with dependency injection support
             with LogStep("Component managers setup", "QAAgent"):
                 self.model_manager = model_manager or ModelManager(self.config)
-                self.tools_manager = tools_manager or ToolsManager(self.config.tools)
+                self.tools_manager = tools_manager or ToolsManager(self.config)
                 self.storage_manager = storage_manager or StorageManager(self.config)
 
             logger.info(

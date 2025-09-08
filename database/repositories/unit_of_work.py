@@ -13,6 +13,7 @@ from sqlalchemy import text
 
 from .interfaces import IUnitOfWork, IRepository
 from .users import UserRepository
+from .app_environment_country_mappings_repository import AppEnvironmentCountryMappingRepository
 from .exceptions import RepositoryError
 
 # Generic type for repositories
@@ -44,6 +45,13 @@ class UnitOfWork(IUnitOfWork):
         if 'users' not in self._repositories:
             self._repositories['users'] = UserRepository(self._session)
         return cast(UserRepository, self._repositories['users'])
+    
+    @property
+    def app_environment_country_mappings(self) -> AppEnvironmentCountryMappingRepository:
+        """Get or create AppEnvironmentCountryMapping repository"""
+        if 'app_environment_country_mappings' not in self._repositories:
+            self._repositories['app_environment_country_mappings'] = AppEnvironmentCountryMappingRepository(self._session)
+        return cast(AppEnvironmentCountryMappingRepository, self._repositories['app_environment_country_mappings'])
     
     def get_repository(self, repository_class: Type[T]) -> T:
         """

@@ -208,6 +208,18 @@ class ToolsManager:
                 enabled=enabled_tool_names.get("api_performance_test", True),
                 essential=False,
                 config={}
+            ),
+            "get_execution_status": ToolConfig(
+                name="get_execution_status",
+                enabled=enabled_tool_names.get("get_execution_status", True),
+                essential=False,
+                config={}
+            ),
+            "list_recent_performance_tests": ToolConfig(
+                name="list_recent_performance_tests",
+                enabled=enabled_tool_names.get("list_recent_performance_tests", True),
+                essential=False,
+                config={}
             )
         }
         
@@ -290,7 +302,8 @@ class ToolsManager:
                 tool = self._load_database_tool(tool_config)
             elif tool_config.name in ["sql_execute_query", "sql_analyze_table", "sql_explore_database", "sql_qa_analytics"]:
                 tool = self._load_sql_tool(tool_config)
-            elif tool_config.name in ["api_test_endpoint", "api_health_check", "api_performance_test"]:
+            elif tool_config.name in ["api_test_endpoint", "api_health_check", "api_performance_test", 
+                                     "get_execution_status", "list_recent_performance_tests"]:
                 tool = self._load_api_tool(tool_config)
             else:
                 raise ToolLoadError(f"Unknown tool: {tool_config.name}")
@@ -484,14 +497,18 @@ class ToolsManager:
             from src.agent.tools.api_tools import (
                 api_test_endpoint,
                 api_health_check,
-                api_performance_test
+                api_performance_test,
+                get_execution_status,
+                list_recent_performance_tests
             )
             
             # Map tool config name to actual function
             tool_mapping = {
                 "api_test_endpoint": api_test_endpoint,
                 "api_health_check": api_health_check,
-                "api_performance_test": api_performance_test
+                "api_performance_test": api_performance_test,
+                "get_execution_status": get_execution_status,
+                "list_recent_performance_tests": list_recent_performance_tests
             }
             
             if tool_config.name not in tool_mapping:

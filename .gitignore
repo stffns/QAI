@@ -146,6 +146,16 @@ validate_*.py
 inspect_*.py
 *_demo.py
 improvement*.py
+analisis_*.py
+configurar_*.py
+respuesta_*.py
+final_test_*.py
+
+# Performance testing temporary files
+tools/gatling/src/test/resources/endpoints_*.csv
+tools/gatling/src/test/java/example/Simulation*.java
+!tools/gatling/src/test/java/example/BasicSimulation.java
+!tools/gatling/src/test/java/example/UniversalSimulation.java
 
 # Development docs
 docs/initialStage/
