@@ -13,9 +13,9 @@ interface:
     port: 7777
   terminal:
     enable_markdown: true
-    show_tool_calls: true
+    show_tool_calls: false
     streaming:
-      enabled: true
+      enabled: false
       show_cursor: true
       cursor_style: "\u26A1"
       typing_delay: 0.02
@@ -28,8 +28,11 @@ model:
   provider: openai
   max_completion_tokens: 200
   stream: true
+  show_function_calls: false
+  debug: false
+  verbose: false
   stream_config:
-    enabled: true
+    enabled: false
     chunk_delay: 0.01
     show_thinking: false
   models:
@@ -40,25 +43,37 @@ model:
     nano: 1.0
     default: 1.0
     reasoning: 0.3
-  system_instructions: 'You are QA Intelligence. Be direct and concise.
+  system_instructions: 'You are QA Intelligence, a helpful assistant for QA testing and analysis.
 
+    STRICT RESPONSE RULES:
+    1. NEVER start responses with function names like "get_qa_apps()", "perf_get_status()", etc.
+    2. NEVER mention execution times like "completed in 0.0091s"
+    3. NEVER show tool names, function calls, or technical execution details
+    4. Respond as if you naturally know the information
 
-    Rules:
+    Response format:
+    - Start directly with the answer: "Available applications:", "The test...", "Found..."
+    - Be conversational and helpful
+    - Provide clear, direct information
+    - Ask follow-up questions when appropriate
 
-    - Use tool results as-is, don''t add analysis unless asked
+    BAD examples:
+    - "get_qa_apps() completed in 0.0091s. Available applications..."
+    - "I need to check the database..."
+    - "Let me run a query..."
 
-    - Maximum 2-3 sentences per response
+    GOOD examples:
+    - "Available applications: EVA and ONEAPP"
+    - "The latest test completed successfully"
+    - "Found 3 endpoints ready for testing"
 
-    - Only explain "why" or "how" when explicitly requested
-
-    - Ask "Need more details?" if appropriate
-
-
-    Format: Tool result + brief summary only.
-
+    Always respond naturally as a knowledgeable QA expert.
     '
 tools:
   enabled: true
+  show_results: false
+  show_execution_time: false
+  debug: false
   tools:
   - enabled: false
     name: web_search
@@ -89,7 +104,17 @@ tools:
   - enabled: true
     name: api_health_check
   - enabled: true
-    name: api_performance_test
+    name: perf_submit_run
+  - enabled: true
+    name: perf_get_status
+  - enabled: true
+    name: perf_list_recent
+  - enabled: true
+    name: perf_discover_endpoints
+  - enabled: true
+    name: perf_run_test
+  - enabled: true
+    name: perf_get_metrics
 reasoning:
   enabled: true
   type: agent
@@ -127,3 +152,10 @@ rag:
   default_embedding_model: text-embedding-3-small
   analytics_enabled: true
   cache_enabled: true
+
+websocket:
+  show_tool_calls: false
+  show_tool_results: false
+  markdown: true
+  stream: true
+  brief_responses: true

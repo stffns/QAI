@@ -8,3 +8,5 @@ pydantic[dotenv]
 pyyaml
 ddgs
 sqlalchemy
+prometheus-client
+beautifulsoup4

@@ -222,6 +222,60 @@ class DatabaseValidatorTool:
                     "status": "error",
                     "message": f"Error validating mappings: {str(e)}"
                 }
+
+    def validate_environments(self, env_codes: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Validate environments in the database
+        
+        Args:
+            env_codes: Optional list of environment codes to validate. If None, validates all environments.
+            
+        Returns:
+            Dictionary with validation results
+        """
+        from database.models.environments import Environments as EnvModel  # local import to ensure mapper ready
+        with Session(self.engine) as session:
+            try:
+                with LogStep("validate_environments", "DatabaseValidatorTool"):
+                    query = select(EnvModel)
+                    if env_codes:
+                        query = query.where(EnvModel.env_code.in_(env_codes))  # type: ignore[attr-defined]
+                    environments = session.exec(query).all()
+
+                    result = {
+                        "status": "success",
+                        "total_environments": len(environments),
+                        "active_environments": len([e for e in environments if getattr(e, "is_active", False)]),
+                        "inactive_environments": len([e for e in environments if not getattr(e, "is_active", False)]),
+                        "environments": [],
+                    }
+
+                    for env in environments:
+                        created_at = getattr(env, "created_at", None)
+                        env_data = {
+                            "id": env.id,
+                            "env_code": env.env_code,
+                            "env_name": getattr(env, "env_name", None),
+                            "is_production": getattr(env, "is_production", False),
+                            "is_active": getattr(env, "is_active", False),
+                            "created_at": created_at.isoformat() if created_at else None,
+                        }
+                        result["environments"].append(env_data)
+
+                    if env_codes:
+                        found_codes = [e.env_code for e in environments]
+                        missing_codes = [code for code in env_codes if code not in found_codes]
+                        if missing_codes:
+                            result["missing_environments"] = missing_codes
+                            result["status"] = "partial"
+
+                    return result
+
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Error validating environments: {str(e)}",
+                }
     
     def get_app_countries(self, app_code: str) -> Dict[str, Any]:
         """
@@ -642,4 +696,15 @@ def get_all_mappings() -> str:
     """
     validator = DatabaseValidatorTool()
     result = validator.validate_mappings()  # No filter means all mappings
+    return json.dumps(result, indent=2)
+
+def get_all_environments() -> str:
+    """
+    Get all environments from the QA Intelligence database.
+    
+    Returns:
+        JSON string with all environments information
+    """
+    validator = DatabaseValidatorTool()
+    result = validator.validate_environments()  # No filter means all environments
     return json.dumps(result, indent=2)

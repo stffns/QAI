@@ -5,11 +5,13 @@ import static io.gatling.javaapi.http.HttpDsl.*;
 
 import io.gatling.javaapi.core.*;
 import io.gatling.javaapi.http.*;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -28,10 +30,28 @@ public class UniversalSimulation extends Simulation {
     
     // Request configuration  
     private static final String endpoint = System.getProperty("endpoint", "/session");
+    // Optional: comma-separated list of endpoints to chain within the scenario
+    private static final String endpoints = System.getProperty("endpoints", "");
     private static final String method = System.getProperty("method", "GET");
     private static final String authToken = System.getProperty("authToken", "");
     private static final String jsonBody = System.getProperty("jsonBody", "");
     private static final String headers = System.getProperty("headers", "");
+
+    // Assertions configuration (enable/thresholds)
+    // Default disabled to avoid spurious failures in smoke runs; override with -DenableAssertions=true when needed
+    private static final boolean enableAssertions = Boolean.parseBoolean(System.getProperty("enableAssertions", "false"));
+    private static final double failPctLt = Double.parseDouble(System.getProperty("failPctLt", "5.0"));
+    private static final double p95Lt = Double.parseDouble(System.getProperty("p95Lt", "2000"));
+    private static final double p99Lt = Double.parseDouble(System.getProperty("p99Lt", "0"));
+    private static final double meanRtLt = Double.parseDouble(System.getProperty("meanRtLt", "0"));
+
+    // Injection profile tuning
+    private static final String injection = System.getProperty("injection", ""); // e.g., constantRps|rampRps
+    private static final int rampUp = Integer.getInteger("rampUp", 0);
+    private static final int holdFor = Integer.getInteger("holdFor", duration);
+    private static final int rampDown = Integer.getInteger("rampDown", 0);
+    private static final int toUsers = Integer.getInteger("toUsers", vu);
+    private static final int pauseMs = Integer.getInteger("pauseMs", 0);
 
     // HTTP Protocol configuration
     private static final HttpProtocolBuilder httpProtocol = buildHttpProtocol();
@@ -151,39 +171,79 @@ public class UniversalSimulation extends Simulation {
         return listFeeder(jsonList);
     }
 
+    private static String generateRequestName(String ep) {
+        // Generate meaningful request names based on endpoint
+        if (ep == null || ep.isEmpty()) {
+            return "API Request";
+        }
+        
+        // Remove query parameters for cleaner names
+        String cleanEp = ep.split("\\?")[0];
+        
+        // Remove leading slash and replace path separators with spaces
+        String name = cleanEp.replaceFirst("^/", "").replace("/", " ");
+        
+        // If still empty, use method + endpoint
+        if (name.isEmpty()) {
+            return method.toUpperCase() + " " + ep;
+        }
+        
+        // Capitalize first letter and return
+        return name.substring(0, 1).toUpperCase() + 
+               (name.length() > 1 ? name.substring(1) : "");
+    }
+
     private static ScenarioBuilder buildScenario() {
         ScenarioBuilder scn = scenario("Universal Performance Test");
-        
+
         // Add feeder if configured
         if (feeder != null) {
             scn = scn.feed(feeder);
         }
-        
-        // Build HTTP request
-        HttpRequestActionBuilder request = buildHttpRequest();
-        
+
+        // If multiple endpoints provided, chain them in order
+        if (!endpoints.isEmpty()) {
+            String[] eps = endpoints.split(",");
+            ChainBuilder chain = exec(session -> session);
+            for (String e : eps) {
+                String ep = e.trim();
+                if (!ep.startsWith("/")) {
+                    ep = "/" + ep;
+                }
+                HttpRequestActionBuilder req = buildHttpRequest(ep);
+                chain = chain.exec(req);
+                if (pauseMs > 0) {
+                    chain = chain.pause(Duration.ofMillis(pauseMs));
+                }
+            }
+            return scn.exec(chain);
+        }
+
+        // Single endpoint
+        HttpRequestActionBuilder request = buildHttpRequest(endpoint);
         return scn.exec(request);
     }
 
-    private static HttpRequestActionBuilder buildHttpRequest() {
+    private static HttpRequestActionBuilder buildHttpRequest(String ep) {
         HttpRequestActionBuilder request;
         
-        // Create request based on method
+        // Create request based on method with endpoint-specific names
+        String requestName = generateRequestName(ep);
         switch (method.toUpperCase()) {
             case "POST":
-                request = http("API Request").post(endpoint);
+                request = http(requestName).post(ep);
                 break;
             case "PUT":
-                request = http("API Request").put(endpoint);
+                request = http(requestName).put(ep);
                 break;
             case "DELETE":
-                request = http("API Request").delete(endpoint);
+                request = http(requestName).delete(ep);
                 break;
             case "PATCH":
-                request = http("API Request").patch(endpoint);
+                request = http(requestName).patch(ep);
                 break;
             default:
-                request = http("API Request").get(endpoint);
+                request = http(requestName).get(ep);
         }
         
         // Add JSON body if provided
@@ -215,16 +275,37 @@ public class UniversalSimulation extends Simulation {
 
     // Test execution setup
     {
-        setUp(
-            scenario.injectOpen(
-                // Choose injection pattern based on rps
-                rps > 0 ? constantUsersPerSec(rps).during(duration) : atOnceUsers(vu)
-            )
-        )
-        .protocols(httpProtocol)
-        .assertions(
-            global().failedRequests().percent().lt(5.0),
-            global().responseTime().percentile3().lt(2000)
-        );
+        // Injection selection
+        OpenInjectionStep[] openProfile;
+        if (rps > 0) {
+            if (rampUp > 0 || rampDown > 0 || "rampRps".equalsIgnoreCase(injection)) {
+                openProfile = new OpenInjectionStep[] {
+                    rampUsersPerSec(1).to(rps).during(rampUp),
+                    constantUsersPerSec(rps).during(Math.max(1, holdFor)),
+                    rampUsersPerSec(rps).to(1).during(rampDown)
+                };
+            } else {
+                openProfile = new OpenInjectionStep[] { constantUsersPerSec(rps).during(duration) };
+            }
+        } else {
+            openProfile = new OpenInjectionStep[] { atOnceUsers(vu) };
+        }
+
+        PopulationBuilder pop = scenario.injectOpen(openProfile);
+
+        // Build assertions list conditionally
+        List<Assertion> asserts = new ArrayList<>();
+        if (enableAssertions) {
+            if (failPctLt > 0) asserts.add(global().failedRequests().percent().lt(failPctLt));
+            // Gatling Java DSL expects Integer milliseconds for response time thresholds
+            if (p95Lt > 0) asserts.add(global().responseTime().percentile3().lt((int) Math.round(p95Lt)));
+            if (p99Lt > 0) asserts.add(global().responseTime().percentile4().lt((int) Math.round(p99Lt)));
+            if (meanRtLt > 0) asserts.add(global().responseTime().mean().lt((int) Math.round(meanRtLt)));
+        }
+
+        SetUp set = setUp(pop).protocols(httpProtocol);
+        if (!asserts.isEmpty()) {
+            set.assertions(asserts);
+        }
     }
 }

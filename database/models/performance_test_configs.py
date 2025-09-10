@@ -128,6 +128,7 @@ class PerformanceTestConfigBase(SQLModel):
 
 class PerformanceTestConfig(PerformanceTestConfigBase, table=True):
     """Performance test configuration table model."""
+    __tablename__ = "performance_test_configs"
     
     id: Optional[int] = Field(default=None, primary_key=True, description="Primary key")
 

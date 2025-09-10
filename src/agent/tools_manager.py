@@ -159,11 +159,23 @@ class ToolsManager:
                 essential=False,
                 config={}
             ),
+            "qa_environments": ToolConfig(
+                name="qa_environments",
+                enabled=enabled_tool_names.get("qa_environments", True),
+                essential=False,
+                config={}
+            ),
             "qa_search": ToolConfig(
                 name="qa_search",
                 enabled=enabled_tool_names.get("qa_search", True),
                 essential=False,
                 config={}
+            ),
+            "qa_endpoints": ToolConfig(
+                name="qa_endpoints",
+                enabled=enabled_tool_names.get("qa_endpoints", True),
+                essential=False,
+                config={},
             ),
             # SQL Tools for advanced database analysis
             "sql_execute_query": ToolConfig(
@@ -190,7 +202,7 @@ class ToolsManager:
                 essential=False,
                 config={}
             ),
-            # API Tools for endpoint testing and monitoring
+            # API Tools for endpoint testing and monitoring (performance-related removed)
             "api_test_endpoint": ToolConfig(
                 name="api_test_endpoint",
                 enabled=enabled_tool_names.get("api_test_endpoint", True),
@@ -203,24 +215,79 @@ class ToolsManager:
                 essential=False,
                 config={}
             ),
-            "api_performance_test": ToolConfig(
-                name="api_performance_test",
-                enabled=enabled_tool_names.get("api_performance_test", True),
+            # Performance tools (new implementation) - disabled by default
+            "perf_submit_run": ToolConfig(
+                name="perf_submit_run",
+                enabled=enabled_tool_names.get("perf_submit_run", False),
                 essential=False,
-                config={}
+                config={},
             ),
-            "get_execution_status": ToolConfig(
-                name="get_execution_status",
-                enabled=enabled_tool_names.get("get_execution_status", True),
+            "perf_get_status": ToolConfig(
+                name="perf_get_status",
+                enabled=enabled_tool_names.get("perf_get_status", False),
                 essential=False,
-                config={}
+                config={},
             ),
-            "list_recent_performance_tests": ToolConfig(
-                name="list_recent_performance_tests",
-                enabled=enabled_tool_names.get("list_recent_performance_tests", True),
+            "perf_list_recent": ToolConfig(
+                name="perf_list_recent",
+                enabled=enabled_tool_names.get("perf_list_recent", False),
                 essential=False,
-                config={}
-            )
+                config={},
+            ),
+            "perf_discover_endpoints": ToolConfig(
+                name="perf_discover_endpoints",
+                enabled=enabled_tool_names.get("perf_discover_endpoints", True),
+                essential=False,
+                config={},
+            ),
+            "perf_plan_runs": ToolConfig(
+                name="perf_plan_runs",
+                enabled=enabled_tool_names.get("perf_plan_runs", True),
+                essential=False,
+                config={},
+            ),
+            "perf_submit_batch": ToolConfig(
+                name="perf_submit_batch",
+                enabled=enabled_tool_names.get("perf_submit_batch", True),
+                essential=False,
+                config={},
+            ),
+            "perf_get_summary": ToolConfig(
+                name="perf_get_summary",
+                enabled=enabled_tool_names.get("perf_get_summary", True),
+                essential=False,
+                config={},
+            ),
+            "perf_get_execution": ToolConfig(
+                name="perf_get_execution",
+                enabled=enabled_tool_names.get("perf_get_execution", True),
+                essential=False,
+                config={},
+            ),
+            "perf_run_smart": ToolConfig(
+                name="perf_run_smart",
+                enabled=enabled_tool_names.get("perf_run_smart", True),
+                essential=False,
+                config={},
+            ),
+            "perf_process_completed_tests": ToolConfig(
+                name="perf_process_completed_tests",
+                enabled=enabled_tool_names.get("perf_process_completed_tests", True),
+                essential=False,
+                config={},
+            ),
+            "perf_run_test": ToolConfig(
+                name="perf_run_test",
+                enabled=enabled_tool_names.get("perf_run_test", True),
+                essential=False,
+                config={},
+            ),
+            "perf_get_metrics": ToolConfig(
+                name="perf_get_metrics",
+                enabled=enabled_tool_names.get("perf_get_metrics", True),
+                essential=False,
+                config={},
+            ),
         }
         
         for tool_name, default_config in default_tools.items():
@@ -298,13 +365,27 @@ class ToolsManager:
                 tool = self._load_calculator_tool(tool_config)
             elif tool_config.name == "file_operations":
                 tool = self._load_file_tools(tool_config)
-            elif tool_config.name in ["qa_database_stats", "qa_apps", "qa_countries", "qa_mappings", "qa_search"]:
+            elif tool_config.name in ["qa_database_stats", "qa_apps", "qa_countries", "qa_mappings", "qa_environments", "qa_search", "qa_endpoints"]:
                 tool = self._load_database_tool(tool_config)
             elif tool_config.name in ["sql_execute_query", "sql_analyze_table", "sql_explore_database", "sql_qa_analytics"]:
                 tool = self._load_sql_tool(tool_config)
-            elif tool_config.name in ["api_test_endpoint", "api_health_check", "api_performance_test", 
-                                     "get_execution_status", "list_recent_performance_tests"]:
+            elif tool_config.name in ["api_test_endpoint", "api_health_check"]:
                 tool = self._load_api_tool(tool_config)
+            elif tool_config.name in [
+                "perf_submit_run",
+                "perf_get_status",
+                "perf_list_recent",
+                "perf_discover_endpoints",
+                "perf_plan_runs",
+                "perf_submit_batch",
+                "perf_get_summary",
+                "perf_get_execution",
+                "perf_run_smart",
+                "perf_process_completed_tests",
+                "perf_run_test",
+                "perf_get_metrics",
+            ]:
+                tool = self._load_perf_tool(tool_config)
             else:
                 raise ToolLoadError(f"Unknown tool: {tool_config.name}")
             
@@ -427,7 +508,9 @@ class ToolsManager:
                 list_apps,
                 list_countries,
                 list_mappings,
-                search_qa_data
+                list_environments,
+                search_qa_data,
+                list_endpoints,
             )
             
             # Map tool config name to actual function
@@ -436,7 +519,9 @@ class ToolsManager:
                 "qa_apps": list_apps,
                 "qa_countries": list_countries,
                 "qa_mappings": list_mappings,
-                "qa_search": search_qa_data
+                "qa_environments": list_environments,
+                "qa_search": search_qa_data,
+                "qa_endpoints": list_endpoints,
             }
             
             if tool_config.name not in tool_mapping:
@@ -496,19 +581,13 @@ class ToolsManager:
             
             from src.agent.tools.api_tools import (
                 api_test_endpoint,
-                api_health_check,
-                api_performance_test,
-                get_execution_status,
-                list_recent_performance_tests
+                api_health_check
             )
             
             # Map tool config name to actual function
             tool_mapping = {
                 "api_test_endpoint": api_test_endpoint,
-                "api_health_check": api_health_check,
-                "api_performance_test": api_performance_test,
-                "get_execution_status": get_execution_status,
-                "list_recent_performance_tests": list_recent_performance_tests
+                "api_health_check": api_health_check
             }
             
             if tool_config.name not in tool_mapping:
@@ -518,6 +597,48 @@ class ToolsManager:
             
         except ImportError as e:
             raise ToolLoadError(f"API tool {tool_config.name} not available: {e}")
+
+    def _load_perf_tool(self, tool_config: ToolConfig) -> Any:
+        """Load Performance tools (new implementation)."""
+        try:
+            # Add the project root to the path
+            import sys, os
+            project_root = os.path.join(os.path.dirname(__file__), "..", "..")
+            if project_root not in sys.path:
+                sys.path.append(project_root)
+
+            from src.agent.tools.perf_tools import (
+                perf_submit_run,
+                perf_get_status,
+                perf_list_recent,
+                perf_discover_endpoints,
+                perf_plan_runs,
+                perf_submit_batch,
+                perf_get_summary,
+                perf_get_execution,
+                perf_run_smart,
+                perf_process_completed_tests,
+            )
+
+            tool_mapping = {
+                "perf_submit_run": perf_submit_run,
+                "perf_get_status": perf_get_status,
+                "perf_list_recent": perf_list_recent,
+                "perf_discover_endpoints": perf_discover_endpoints,
+                "perf_plan_runs": perf_plan_runs,
+                "perf_submit_batch": perf_submit_batch,
+                "perf_get_summary": perf_get_summary,
+                "perf_get_execution": perf_get_execution,
+                "perf_run_smart": perf_run_smart,
+                "perf_process_completed_tests": perf_process_completed_tests,
+            }
+
+            if tool_config.name not in tool_mapping:
+                raise ToolLoadError(f"Unknown Performance tool: {tool_config.name}")
+
+            return tool_mapping[tool_config.name]
+        except ImportError as e:
+            raise ToolLoadError(f"Performance tool {tool_config.name} not available: {e}")
 
     def _validate_tool(self, tool: Any, tool_name: str) -> None:
         """

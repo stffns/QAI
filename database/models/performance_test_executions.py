@@ -196,6 +196,7 @@ class PerformanceTestExecutionBase(SQLModel):
 
 class PerformanceTestExecution(PerformanceTestExecutionBase, table=True):
     """Performance test execution table model."""
+    __tablename__ = "performance_test_executions"
     
     id: Optional[int] = Field(default=None, primary_key=True, description="Primary key")
 

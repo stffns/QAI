@@ -298,11 +298,8 @@ class LoggingConfig(BaseModel):
     @model_validator(mode='after')
     def validate_logging_configuration(self):
         """Validate the overall logging configuration."""
-        # At least one output method must be enabled
-        if not self.enable_file_logging and not self.enable_console_logging:
-            raise ValueError(
-                "At least one logging output (file or console) must be enabled"
-            )
+        # Allow disabling both console and file outputs; JSON can still be disabled, used for tests
+        # If all outputs are disabled, logger setup can decide to be a no-op
         
         # If JSON logging is enabled but no separate file is specified,
         # use the main log file location with .json extension

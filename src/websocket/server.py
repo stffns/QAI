@@ -204,12 +204,12 @@ class WebSocketServer:
     
     def _manager_supports_streaming(self) -> bool:
         """
-        Check if the manager supports streaming functionality.
+        Check if the agent manager supports streaming responses.
         
         Returns:
-            bool: True if streaming is supported, False otherwise
+            bool: True if streaming is supported and enabled, False otherwise
         """
-        return hasattr(self.manager, 'process_chat_message_stream') and callable(getattr(self.manager, 'process_chat_message_stream'))
+        return hasattr(self.manager, 'process_chat_message_stream')
     
     async def _handle_connection(self, websocket: ServerConnection, path: str = "/") -> None:
         """

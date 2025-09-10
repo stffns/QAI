@@ -205,6 +205,41 @@ class PerformanceTestExecutionRepository(BaseRepository[PerformanceTestExecution
         
         return execution
 
+    def update_metrics(self, execution_id: str, fields: Dict[str, Any]) -> PerformanceTestExecution:
+        """Update execution metrics and related paths.
+
+        Accepts a dictionary with keys matching PerformanceTestExecution fields, such as:
+        total_requests, successful_requests, failed_requests, avg_rps,
+        avg_response_time, p95_response_time, p99_response_time,
+        min_response_time, max_response_time, error_rate, gatling_report_path.
+        """
+        execution = self.find_by_execution_id(execution_id)
+        if not execution:
+            raise EntityNotFoundError("PerformanceTestExecution", execution_id)
+
+        allowed = {
+            "total_requests",
+            "successful_requests",
+            "failed_requests",
+            "avg_rps",
+            "avg_response_time",
+            "p95_response_time",
+            "p99_response_time",
+            "min_response_time",
+            "max_response_time",
+            "error_rate",
+            "gatling_report_path",
+        }
+        for k, v in fields.items():
+            if k in allowed:
+                setattr(execution, k, v)
+
+        execution.updated_at = datetime.utcnow()
+        self.session.add(execution)
+        self.session.commit()
+        self.session.refresh(execution)
+        return execution
+
     def update_validation_status(
         self, 
         execution_id: str, 

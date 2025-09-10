@@ -1,0 +1,23 @@
+{
+  "app": "demo-app",
+  "country": "AR",
+  "environment": "dev",
+  "test_type": "smoke",
+  "metadata": {
+    "endpoint_slug": "http://localhost:8080/ping",
+    "scenario_slug": null,
+    "notes": null
+  },
+  "endpoint": "http://localhost:8080/ping",
+  "load": {
+    "users": 2,
+    "duration_sec": 5
+  },
+  "scenario": {
+    "scenario_slug": null,
+    "endpoint": "http://localhost:8080/ping",
+    "rps_target": null,
+    "feeder_file": null,
+    "injection_profile": null
+  }
+}

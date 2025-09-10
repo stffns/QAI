@@ -20,6 +20,8 @@ class PerformanceEndpointResults(SQLModel, table=True):
     Almacena métricas detalladas de performance por endpoint durante la ejecución
     de tests de carga. Incluye percentiles completos y campos de auditoría.
     """
+    __tablename__ = "performance_endpoint_results"
+    
     # Primary key
     id: Optional[int] = Field(default=None, primary_key=True, description="Primary key")
     
@@ -121,43 +123,43 @@ class PerformanceEndpointResults(SQLModel, table=True):
         description="Peak requests per second achieved"
     )
     
-    # Status code breakdown (Optional JSON)
-    status_code_distribution: Optional[str] = Field(
-        default=None,
-        description="JSON string with status code distribution {200: 150, 404: 5, etc.}"
-    )
+    # Status code breakdown (Optional JSON) - COMMENTED OUT: Not in DB table
+    # status_code_distribution: Optional[str] = Field(
+    #     default=None,
+    #     description="JSON string with status code distribution {200: 150, 404: 5, etc.}"
+    # )
     
-    # Error information (Optional)
-    error_messages: Optional[str] = Field(
-        default=None,
-        description="Sample error messages encountered (JSON or text)"
-    )
+    # Error information (Optional) - COMMENTED OUT: Not in DB table
+    # error_messages: Optional[str] = Field(
+    #     default=None,
+    #     description="Sample error messages encountered (JSON or text)"
+    # )
     
-    # Test configuration context (Optional)
-    concurrent_users: Optional[int] = Field(
-        default=None,
-        ge=1,
-        description="Number of concurrent users/threads during test"
-    )
+    # Test configuration context (Optional) - COMMENTED OUT: Not in DB table
+    # concurrent_users: Optional[int] = Field(
+    #     default=None,
+    #     ge=1,
+    #     description="Number of concurrent users/threads during test"
+    # )
     
-    test_duration_seconds: Optional[float] = Field(
-        default=None,
-        ge=0,
-        description="Duration of the test in seconds"
-    )
+    # test_duration_seconds: Optional[float] = Field(
+    #     default=None,
+    #     ge=0,
+    #     description="Duration of the test in seconds"
+    # )
     
-    # Additional metrics (Optional)
-    bytes_received: Optional[int] = Field(
-        default=None,
-        ge=0,
-        description="Total bytes received from this endpoint"
-    )
+    # Additional metrics (Optional) - COMMENTED OUT: Not in DB table
+    # bytes_received: Optional[int] = Field(
+    #     default=None,
+    #     ge=0,
+    #     description="Total bytes received from this endpoint"
+    # )
     
-    bytes_sent: Optional[int] = Field(
-        default=None,
-        ge=0,
-        description="Total bytes sent to this endpoint"
-    )
+    # bytes_sent: Optional[int] = Field(
+    #     default=None,
+    #     ge=0,
+    #     description="Total bytes sent to this endpoint"
+    # )
     
     # Control and audit fields
     created_at: datetime = Field(
@@ -373,3 +375,124 @@ class PerformanceEndpointResults(SQLModel, table=True):
                 created_by="system"
             )
         ]
+
+
+# Create/Input models for API operations
+class PerformanceEndpointResultsCreate(SQLModel):
+    """Model for creating performance endpoint results."""
+    
+    # Conexión con execution (required)
+    execution_id: str = Field(
+        max_length=100,
+        description="ID of the performance test execution"
+    )
+    
+    # Endpoint information (required)
+    endpoint_name: str = Field(
+        max_length=500,
+        description="Endpoint path or name being tested"
+    )
+    
+    http_method: str = Field(
+        max_length=10,
+        description="HTTP method (GET, POST, PUT, DELETE, etc.)"
+    )
+    
+    # Optional endpoint information
+    endpoint_url: Optional[str] = Field(
+        default=None,
+        max_length=1000,
+        description="Full endpoint URL"
+    )
+    
+    # Request metrics (required)
+    total_requests: int = Field(
+        ge=0,
+        description="Total number of requests sent"
+    )
+    
+    successful_requests: int = Field(
+        ge=0,
+        description="Number of successful requests"
+    )
+    
+    failed_requests: int = Field(
+        ge=0,
+        description="Number of failed requests"
+    )
+    
+    # Response time metrics (optional but recommended)
+    p50_response_time: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="50th percentile response time in milliseconds"
+    )
+    
+    p75_response_time: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="75th percentile response time in milliseconds"
+    )
+    
+    p95_response_time: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="95th percentile response time in milliseconds"
+    )
+    
+    p99_response_time: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="99th percentile response time in milliseconds"
+    )
+    
+    avg_response_time: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="Average response time in milliseconds"
+    )
+    
+    max_response_time: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="Maximum response time in milliseconds"
+    )
+    
+    min_response_time: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="Minimum response time in milliseconds"
+    )
+    
+    # Throughput metrics (optional)
+    requests_per_second: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="Average requests per second"
+    )
+    
+    max_rps: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="Maximum requests per second achieved"
+    )
+    
+    # Test execution context (optional)
+    concurrent_users: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Number of concurrent users/threads"
+    )
+    
+    test_duration_seconds: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="Duration of the test in seconds"
+    )
+    
+    # Audit fields (optional)
+    created_by: Optional[str] = Field(
+        default="system",
+        max_length=100,
+        description="User or system that created this record"
+    )
