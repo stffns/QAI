@@ -38,9 +38,9 @@ class EndpointMetricsExporter:
         self.registry = CollectorRegistry()
         
         # Métricas de ejecuciones (existentes)
-        self.executions_total = Counter(
+        self.executions_total = Gauge(
             'qa_perf_executions_total',
-            'Total performance test executions by status',
+            'Total performance test executions by status (cumulative)',
             ['status'],
             registry=self.registry
         )
@@ -53,10 +53,10 @@ class EndpointMetricsExporter:
         )
         
         # 🎯 NUEVAS MÉTRICAS POR ENDPOINT
-        # Counter de requests por endpoint
-        self.endpoint_requests_total = Counter(
+        # Gauge de requests por endpoint - Fixed from Counter to avoid semantics violation
+        self.endpoint_requests_total = Gauge(
             'qa_perf_endpoint_requests_total',
-            'Total requests per endpoint',
+            'Total requests per endpoint (cumulative from database)',
             ['endpoint', 'method', 'status'],  # status = success/failed
             registry=self.registry
         )
@@ -198,12 +198,12 @@ class EndpointMetricsExporter:
                     
                     self.executions_current.labels(status=status.value).set(count)
                     
-                    # Update total counters for terminal states
+                    # For terminal states, use gauge for database synchronization
+                    # Note: Using Gauge instead of Counter because we're syncing from database state,
+                    # not counting real-time events. Counters should only increment on actual events.
+                    # This follows Prometheus best practices for metric semantics.
                     if status in [ExecutionStatus.COMPLETED, ExecutionStatus.FAILED]:
-                        self.executions_total.labels(status=status.value).inc(0)  # Initialize if not exists
-                        current_total = self.executions_total.labels(status=status.value)._value._value
-                        if current_total < count:
-                            self.executions_total.labels(status=status.value).inc(count - current_total)
+                        self.executions_total.labels(status=status.value).set(count)
                             
         except Exception as e:
             logger.error(f"Error collecting execution metrics: {e}")
@@ -309,14 +309,14 @@ class EndpointMetricsExporter:
             method = agg['method']
             latest = agg['latest_result']
             
-            # 📊 Request counters y current gauges
+            # 📊 Request totals using Gauge for database synchronization
             self.endpoint_requests_total.labels(
                 endpoint=endpoint, method=method, status='success'
-            ).inc(agg['successful_requests'])
+            ).set(agg['successful_requests'])
             
             self.endpoint_requests_total.labels(
                 endpoint=endpoint, method=method, status='failed'
-            ).inc(agg['failed_requests'])
+            ).set(agg['failed_requests'])
             
             # Current gauges (from latest execution)
             self.endpoint_requests_current.labels(
@@ -423,7 +423,7 @@ def main():
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("\\n🛑 Stopping exporter...")
+            print("\n🛑 Stopping exporter...")
             exporter.stop()
             print("✅ Stopped successfully")
     else:
