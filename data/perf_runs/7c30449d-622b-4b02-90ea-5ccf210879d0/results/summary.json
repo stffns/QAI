@@ -1,0 +1,14 @@
+{
+  "parsed": true,
+  "path": "data/perf_runs/7c30449d-622b-4b02-90ea-5ccf210879d0/results/runner.log",
+  "total": 1.0,
+  "ok": 1.0,
+  "ko": null,
+  "p50": null,
+  "p95": 2923.0,
+  "p99": 2923.0,
+  "min_rt": 2923.0,
+  "max_rt": 2923.0,
+  "mean_rt": 2923.0,
+  "mean_rps": 0.33
+}

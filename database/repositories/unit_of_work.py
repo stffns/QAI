@@ -10,9 +10,11 @@ from sqlmodel import Session, create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
+from sqlmodel import SQLModel
 
 from .interfaces import IUnitOfWork, IRepository
 from .users import UserRepository
+from .app_environment_country_mappings_repository import AppEnvironmentCountryMappingRepository
 from .exceptions import RepositoryError
 
 # Generic type for repositories
@@ -44,6 +46,13 @@ class UnitOfWork(IUnitOfWork):
         if 'users' not in self._repositories:
             self._repositories['users'] = UserRepository(self._session)
         return cast(UserRepository, self._repositories['users'])
+    
+    @property
+    def app_environment_country_mappings(self) -> AppEnvironmentCountryMappingRepository:
+        """Get or create AppEnvironmentCountryMapping repository"""
+        if 'app_environment_country_mappings' not in self._repositories:
+            self._repositories['app_environment_country_mappings'] = AppEnvironmentCountryMappingRepository(self._session)
+        return cast(AppEnvironmentCountryMappingRepository, self._repositories['app_environment_country_mappings'])
     
     def get_repository(self, repository_class: Type[T]) -> T:
         """
@@ -160,6 +169,30 @@ class UnitOfWorkFactory:
         """Initialize factory with database engine"""
         self.engine = engine
         self.session_factory = sessionmaker(bind=engine, class_=Session)
+        # Ensure all tables exist for repositories that may be used immediately
+        try:
+            # Import models to register them into SQLModel.metadata
+            try:
+                from database.models import (
+                    # Ensure base models always import
+                    BaseModel,
+                )
+                # Import performance models explicitly so FKs resolve
+                from database.models.performance_test_executions import PerformanceTestExecution  # noqa: F401
+                from database.models.performance_test_configs import PerformanceTestConfig  # noqa: F401
+                # Import other commonly used models
+                from database.models.app_environment_country_mappings import AppEnvironmentCountryMapping  # noqa: F401
+                from database.models.application_endpoints import ApplicationEndpoint  # noqa: F401
+                from database.models.apps import Apps  # noqa: F401
+                from database.models.environments import Environments  # noqa: F401
+                from database.models.countries import Countries  # noqa: F401
+            except Exception:
+                # Soft-fail; metadata may still be complete enough
+                pass
+            SQLModel.metadata.create_all(self.engine)
+        except Exception:
+            # Non-fatal: some environments may manage migrations externally
+            pass
     
     def create(self) -> UnitOfWork:
         """Create new UnitOfWork instance with fresh session"""

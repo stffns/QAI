@@ -222,27 +222,10 @@ def api_health_check(url: str, expected_status: int = 200) -> str:
         return f"❌ {url} → Health check failed: {str(e)}"
 
 
-@tool
-def api_performance_test(url: str, iterations: int = 5) -> str:
-    """
-    Quick API performance test - Returns ONLY the performance summary, no analysis needed.
-    
-    Args:
-        url: API endpoint URL
-        iterations: Number of test requests (default: 5)
-    
-    Returns:
-        FINAL performance summary - no further analysis required
-    """
-    try:
-        result = qa_api_tools.performance_test(url, iterations)
-        
-        # Return ONLY the essential performance info
-        return f"⚡ {url} → {result['rating']} ({result['success_rate']} success, avg {result['avg_time']})"
-        
-    except Exception as e:
-        return f"❌ {url} → Performance test failed: {str(e)}"
 
 
 # Export for toolchain discovery
-__all__ = ['api_test_endpoint', 'api_health_check', 'api_performance_test']
+__all__ = [
+    'api_test_endpoint', 
+    'api_health_check'
+]

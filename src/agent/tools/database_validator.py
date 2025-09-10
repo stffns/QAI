@@ -5,17 +5,21 @@ This tool provides comprehensive validation and querying capabilities for the QA
 specifically for Apps, Countries, and Application-Country Mappings.
 """
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
 from sqlmodel import Session, select
+from src.logging_config import get_logger, LogStep
 
 # Import the models
 try:
     from database.models.apps import Apps
     from database.models.countries import Countries
-    from database.models.mappings import ApplicationCountryMapping
+    from database.models.app_environment_country_mappings import AppEnvironmentCountryMapping
+    # Import ApplicationEndpoint to ensure relationship resolution at mapper configuration time
+    # SQLAlchemy resolves string-based relationships via the class registry; importing the model
+    # registers it and prevents "failed to locate a name ('ApplicationEndpoint')" errors.
+    from database.models.application_endpoints import ApplicationEndpoint  # noqa: F401
+    from database.models.environments import Environments  # noqa: F401
     from database.connection import db_manager
 except ImportError:
     import sys
@@ -23,21 +27,27 @@ except ImportError:
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
     from database.models.apps import Apps
     from database.models.countries import Countries
-    from database.models.mappings import ApplicationCountryMapping
+    from database.models.app_environment_country_mappings import AppEnvironmentCountryMapping
+    from database.models.application_endpoints import ApplicationEndpoint  # noqa: F401
+    from database.models.environments import Environments  # noqa: F401
     from database.connection import db_manager
 
 class DatabaseValidatorTool:
     """
-    Comprehensive database validation and query tool for QA Intelligence.
+    Uses the unified mapping table: AppEnvironmentCountryMapping
     
-    Provides methods to validate, query, and analyze the relationships between
-    Apps, Countries, and their mappings.
+    Database validation and query tool for the QA Intelligence Agent.
+    
+    Provides tools to:
+    - Validate app codes and country codes
+    - Get database statistics
+    - Search apps, countries, and mappings
     """
     
     def __init__(self):
         """Initialize the database validator tool"""
         self.engine = db_manager.engine
-        self.session_factory = sessionmaker(bind=self.engine)
+        self.logger = get_logger("DatabaseValidatorTool")
     
     def validate_apps(self, app_codes: Optional[List[str]] = None) -> Dict[str, Any]:
         """
@@ -51,44 +61,40 @@ class DatabaseValidatorTool:
         """
         with Session(self.engine) as session:
             try:
-                if app_codes:
-                    # Validate specific apps
-                    query = select(Apps).where(Apps.app_code.in_(app_codes))
-                else:
-                    # Validate all apps
+                with LogStep("validate_apps", "DatabaseValidatorTool"):
                     query = select(Apps)
-                
-                apps = session.exec(query).all()
-                
-                result = {
-                    "status": "success",
-                    "total_apps": len(apps),
-                    "active_apps": len([app for app in apps if app.is_active]),
-                    "inactive_apps": len([app for app in apps if not app.is_active]),
-                    "apps": []
-                }
-                
-                for app in apps:
-                    app_data = {
-                        "id": app.id,
-                        "app_code": app.app_code,
-                        "app_name": app.app_name,
-                        "description": app.description,
-                        "is_active": app.is_active,
-                        "created_at": app.created_at.isoformat() if app.created_at else None,
-                        "country_count": len(app.country_mappings) if app.country_mappings else 0
+                    if app_codes:
+                        query = query.where(Apps.app_code.in_(app_codes))  # type: ignore[attr-defined]
+                    apps = session.exec(query).all()
+
+                    result = {
+                        "status": "success",
+                        "total_apps": len(apps),
+                        "active_apps": len([app for app in apps if app.is_active]),
+                        "inactive_apps": len([app for app in apps if not app.is_active]),
+                        "apps": []
                     }
-                    result["apps"].append(app_data)
-                
-                if app_codes:
-                    # Check for missing apps
-                    found_codes = [app.app_code for app in apps]
-                    missing_codes = [code for code in app_codes if code not in found_codes]
-                    if missing_codes:
-                        result["missing_apps"] = missing_codes
-                        result["status"] = "partial"
-                
-                return result
+
+                    for app in apps:
+                        app_data = {
+                            "id": app.id,
+                            "app_code": app.app_code,
+                            "app_name": app.app_name,
+                            "description": app.description,
+                            "is_active": app.is_active,
+                            "created_at": app.created_at.isoformat() if app.created_at else None,
+                            "country_count": len(app.country_mappings) if app.country_mappings else 0
+                        }
+                        result["apps"].append(app_data)
+
+                    if app_codes:
+                        found_codes = [app.app_code for app in apps]
+                        missing_codes = [code for code in app_codes if code not in found_codes]
+                        if missing_codes:
+                            result["missing_apps"] = missing_codes
+                            result["status"] = "partial"
+
+                    return result
                 
             except Exception as e:
                 return {
@@ -108,46 +114,42 @@ class DatabaseValidatorTool:
         """
         with Session(self.engine) as session:
             try:
-                if country_codes:
-                    # Validate specific countries
-                    query = select(Countries).where(Countries.country_code.in_(country_codes))
-                else:
-                    # Validate all countries
+                with LogStep("validate_countries", "DatabaseValidatorTool"):
                     query = select(Countries)
-                
-                countries = session.exec(query).all()
-                
-                result = {
-                    "status": "success",
-                    "total_countries": len(countries),
-                    "active_countries": len([country for country in countries if country.is_active]),
-                    "inactive_countries": len([country for country in countries if not country.is_active]),
-                    "countries": []
-                }
-                
-                for country in countries:
-                    country_data = {
-                        "id": country.id,
-                        "country_code": country.country_code,
-                        "country_name": country.country_name,
-                        "region": country.region,
-                        "currency_code": country.currency_code,
-                        "timezone": country.timezone,
-                        "is_active": country.is_active,
-                        "created_at": country.created_at.isoformat() if country.created_at else None,
-                        "app_count": len(country.app_mappings) if country.app_mappings else 0
+                    if country_codes:
+                        query = query.where(Countries.country_code.in_(country_codes))  # type: ignore[attr-defined]
+                    countries = session.exec(query).all()
+
+                    result = {
+                        "status": "success",
+                        "total_countries": len(countries),
+                        "active_countries": len([country for country in countries if country.is_active]),
+                        "inactive_countries": len([country for country in countries if not country.is_active]),
+                        "countries": []
                     }
-                    result["countries"].append(country_data)
-                
-                if country_codes:
-                    # Check for missing countries
-                    found_codes = [country.country_code for country in countries]
-                    missing_codes = [code for code in country_codes if code not in found_codes]
-                    if missing_codes:
-                        result["missing_countries"] = missing_codes
-                        result["status"] = "partial"
-                
-                return result
+
+                    for country in countries:
+                        country_data = {
+                            "id": country.id,
+                            "country_code": country.country_code,
+                            "country_name": country.country_name,
+                            "region": country.region,
+                            "currency_code": country.currency_code,
+                            "timezone": country.timezone,
+                            "is_active": country.is_active,
+                            "created_at": country.created_at.isoformat() if country.created_at else None,
+                            "app_count": len(country.app_mappings) if country.app_mappings else 0
+                        }
+                        result["countries"].append(country_data)
+
+                    if country_codes:
+                        found_codes = [country.country_code for country in countries]
+                        missing_codes = [code for code in country_codes if code not in found_codes]
+                        if missing_codes:
+                            result["missing_countries"] = missing_codes
+                            result["status"] = "partial"
+
+                    return result
                 
             except Exception as e:
                 return {
@@ -168,50 +170,111 @@ class DatabaseValidatorTool:
         """
         with Session(self.engine) as session:
             try:
-                # Build the query
-                query = select(ApplicationCountryMapping)
-                
-                # Add joins to get app and country data
-                query = query.join(Apps).join(Countries)
-                
-                # Apply filters if provided
-                if app_code:
-                    query = query.where(Apps.app_code == app_code)
-                if country_code:
-                    query = query.where(Countries.country_code == country_code)
-                
-                mappings = session.exec(query).all()
-                
-                result = {
-                    "status": "success",
-                    "total_mappings": len(mappings),
-                    "active_mappings": len([m for m in mappings if m.is_currently_active]),
-                    "inactive_mappings": len([m for m in mappings if not m.is_currently_active]),
-                    "mappings": []
-                }
-                
-                for mapping in mappings:
-                    mapping_data = {
-                        "mapping_id": mapping.mapping_id,
-                        "app_code": mapping.application.app_code,
-                        "app_name": mapping.application.app_name,
-                        "country_code": mapping.country.country_code,
-                        "country_name": mapping.country.country_name,
-                        "is_active": mapping.is_active,
-                        "is_currently_active": mapping.is_currently_active,
-                        "launched_date": mapping.launched_date.isoformat() if mapping.launched_date else None,
-                        "deprecated_date": mapping.deprecated_date.isoformat() if mapping.deprecated_date else None,
-                        "deployment_duration_days": mapping.deployment_duration_days,
-                        "created_at": mapping.created_at.isoformat() if mapping.created_at else None
+                with LogStep("validate_mappings", "DatabaseValidatorTool"):
+                    # Resolve optional filters to IDs first
+                    app_id: Optional[int] = None
+                    country_id: Optional[int] = None
+                    if app_code:
+                        app_id = session.exec(select(Apps.id).where(Apps.app_code == app_code)).first()
+                        if app_id is None:
+                            return {"status": "success", "total_mappings": 0, "active_mappings": 0, "inactive_mappings": 0, "mappings": []}
+                    if country_code:
+                        country_id = session.exec(select(Countries.id).where(Countries.country_code == country_code)).first()
+                        if country_id is None:
+                            return {"status": "success", "total_mappings": 0, "active_mappings": 0, "inactive_mappings": 0, "mappings": []}
+
+                    query = select(AppEnvironmentCountryMapping)
+                    if app_id is not None:
+                        query = query.where(AppEnvironmentCountryMapping.application_id == app_id)
+                    if country_id is not None:
+                        query = query.where(AppEnvironmentCountryMapping.country_id == country_id)
+
+                    mappings = session.exec(query).all()
+
+                    result = {
+                        "status": "success",
+                        "total_mappings": len(mappings),
+                        "active_mappings": len([m for m in mappings if m.is_currently_active]),
+                        "inactive_mappings": len([m for m in mappings if not m.is_currently_active]),
+                        "mappings": []
                     }
-                    result["mappings"].append(mapping_data)
-                
-                return result
+
+                    for mapping in mappings:
+                        mapping_data = {
+                            "mapping_id": mapping.id,
+                            "app_code": mapping.application.app_code,
+                            "app_name": mapping.application.app_name,
+                            "country_code": mapping.country.country_code,
+                            "country_name": mapping.country.country_name,
+                            "is_active": mapping.is_active,
+                            "is_currently_active": mapping.is_currently_active,
+                            "launched_date": mapping.launched_date.isoformat() if mapping.launched_date else None,
+                            "deprecated_date": mapping.deprecated_date.isoformat() if mapping.deprecated_date else None,
+                            "deployment_duration_days": mapping.deployment_duration_days,
+                            "created_at": mapping.created_at.isoformat() if mapping.created_at else None
+                        }
+                        result["mappings"].append(mapping_data)
+
+                    return result
                 
             except Exception as e:
                 return {
                     "status": "error",
                     "message": f"Error validating mappings: {str(e)}"
+                }
+
+    def validate_environments(self, env_codes: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Validate environments in the database
+        
+        Args:
+            env_codes: Optional list of environment codes to validate. If None, validates all environments.
+            
+        Returns:
+            Dictionary with validation results
+        """
+        from database.models.environments import Environments as EnvModel  # local import to ensure mapper ready
+        with Session(self.engine) as session:
+            try:
+                with LogStep("validate_environments", "DatabaseValidatorTool"):
+                    query = select(EnvModel)
+                    if env_codes:
+                        query = query.where(EnvModel.env_code.in_(env_codes))  # type: ignore[attr-defined]
+                    environments = session.exec(query).all()
+
+                    result = {
+                        "status": "success",
+                        "total_environments": len(environments),
+                        "active_environments": len([e for e in environments if getattr(e, "is_active", False)]),
+                        "inactive_environments": len([e for e in environments if not getattr(e, "is_active", False)]),
+                        "environments": [],
+                    }
+
+                    for env in environments:
+                        created_at = getattr(env, "created_at", None)
+                        env_data = {
+                            "id": env.id,
+                            "env_code": env.env_code,
+                            "env_name": getattr(env, "env_name", None),
+                            "is_production": getattr(env, "is_production", False),
+                            "is_active": getattr(env, "is_active", False),
+                            "created_at": created_at.isoformat() if created_at else None,
+                        }
+                        result["environments"].append(env_data)
+
+                    if env_codes:
+                        found_codes = [e.env_code for e in environments]
+                        missing_codes = [code for code in env_codes if code not in found_codes]
+                        if missing_codes:
+                            result["missing_environments"] = missing_codes
+                            result["status"] = "partial"
+
+                    return result
+
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Error validating environments: {str(e)}",
                 }
     
     def get_app_countries(self, app_code: str) -> Dict[str, Any]:
@@ -237,9 +300,8 @@ class DatabaseValidatorTool:
                 
                 # Get mappings for this app
                 mappings = session.exec(
-                    select(ApplicationCountryMapping)
-                    .join(Countries)
-                    .where(ApplicationCountryMapping.application_id == app.id)
+                    select(AppEnvironmentCountryMapping)
+                    .where(AppEnvironmentCountryMapping.application_id == app.id)
                 ).all()
                 
                 result = {
@@ -294,9 +356,8 @@ class DatabaseValidatorTool:
                 
                 # Get mappings for this country
                 mappings = session.exec(
-                    select(ApplicationCountryMapping)
-                    .join(Apps)
-                    .where(ApplicationCountryMapping.country_id == country.id)
+                    select(AppEnvironmentCountryMapping)
+                    .where(AppEnvironmentCountryMapping.country_id == country.id)
                 ).all()
                 
                 result = {
@@ -342,54 +403,95 @@ class DatabaseValidatorTool:
         """
         with Session(self.engine) as session:
             try:
-                result = {
-                    "status": "success",
-                    "search_term": search_term,
-                    "search_type": search_type,
-                    "results": {}
-                }
-                
-                if search_type in ["apps", "all"]:
-                    # Search apps
-                    apps = session.exec(
-                        select(Apps).where(
-                            (Apps.app_code.ilike(f"%{search_term}%")) |
-                            (Apps.app_name.ilike(f"%{search_term}%")) |
-                            (Apps.description.ilike(f"%{search_term}%"))
-                        )
-                    ).all()
-                    
-                    result["results"]["apps"] = [
-                        {
-                            "app_code": app.app_code,
-                            "app_name": app.app_name,
-                            "description": app.description,
-                            "is_active": app.is_active
+                with LogStep("search_database", "DatabaseValidatorTool"):
+                    # Normalize search_type
+                    search_type = (search_type or "all").lower().strip()
+                    valid_types = {"apps", "countries", "mappings", "all"}
+                    if search_type not in valid_types:
+                        return {
+                            "status": "error",
+                            "message": f"Invalid search_type '{search_type}'. Must be one of {sorted(valid_types)}"
                         }
-                        for app in apps
-                    ]
-                
-                if search_type in ["countries", "all"]:
-                    # Search countries
-                    countries = session.exec(
-                        select(Countries).where(
-                            (Countries.country_code.ilike(f"%{search_term}%")) |
-                            (Countries.country_name.ilike(f"%{search_term}%")) |
-                            (Countries.region.ilike(f"%{search_term}%"))
-                        )
-                    ).all()
-                    
-                    result["results"]["countries"] = [
-                        {
-                            "country_code": country.country_code,
-                            "country_name": country.country_name,
-                            "region": country.region,
-                            "is_active": country.is_active
-                        }
-                        for country in countries
-                    ]
-                
-                return result
+                    result = {
+                        "status": "success",
+                        "search_term": search_term,
+                        "search_type": search_type,
+                        "results": {}
+                    }
+
+                    if search_type in ["apps", "all"]:
+                        apps = session.exec(
+                            select(Apps).where(
+                                Apps.app_code.ilike(f"%{search_term}%") |  # type: ignore[attr-defined]
+                                Apps.app_name.ilike(f"%{search_term}%") |  # type: ignore[attr-defined]
+                                Apps.description.ilike(f"%{search_term}%")  # type: ignore[attr-defined]
+                            )
+                        ).all()
+                        result["results"]["apps"] = [
+                            {
+                                "app_code": app.app_code,
+                                "app_name": app.app_name,
+                                "description": app.description,
+                                "is_active": app.is_active
+                            }
+                            for app in apps
+                        ]
+
+                    if search_type in ["countries", "all"]:
+                        countries = session.exec(
+                            select(Countries).where(
+                                Countries.country_code.ilike(f"%{search_term}%") |  # type: ignore[attr-defined]
+                                Countries.country_name.ilike(f"%{search_term}%") |  # type: ignore[attr-defined]
+                                Countries.region.ilike(f"%{search_term}%")  # type: ignore[attr-defined]
+                            )
+                        ).all()
+                        result["results"]["countries"] = [
+                            {
+                                "country_code": country.country_code,
+                                "country_name": country.country_name,
+                                "region": country.region,
+                                "is_active": country.is_active
+                            }
+                            for country in countries
+                        ]
+
+                    if search_type in ["mappings", "all"]:
+                        app_ids = set(session.exec(
+                            select(Apps.id).where(
+                                Apps.app_code.ilike(f"%{search_term}%") |  # type: ignore[attr-defined]
+                                Apps.app_name.ilike(f"%{search_term}%")  # type: ignore[attr-defined]
+                            )
+                        ).all() or [])
+                        country_ids = set(session.exec(
+                            select(Countries.id).where(
+                                Countries.country_code.ilike(f"%{search_term}%") |  # type: ignore[attr-defined]
+                                Countries.country_name.ilike(f"%{search_term}%")  # type: ignore[attr-defined]
+                            )
+                        ).all() or [])
+
+                        query = select(AppEnvironmentCountryMapping)
+                        if app_ids:
+                            query = query.where(AppEnvironmentCountryMapping.application_id.in_(app_ids))  # type: ignore[attr-defined]
+                        if country_ids:
+                            query = query.where(AppEnvironmentCountryMapping.country_id.in_(country_ids))  # type: ignore[attr-defined]
+                        mappings = session.exec(query).all()
+                        result["results"]["mappings"] = [
+                            {
+                                "mapping_id": m.id,
+                                "app_code": m.application.app_code,
+                                "app_name": m.application.app_name,
+                                "country_code": m.country.country_code,
+                                "country_name": m.country.country_name,
+                                "is_active": m.is_active,
+                                "is_currently_active": m.is_currently_active,
+                                "launched_date": m.launched_date.isoformat() if m.launched_date else None,
+                                "deprecated_date": m.deprecated_date.isoformat() if m.deprecated_date else None,
+                                "deployment_duration_days": m.deployment_duration_days,
+                            }
+                            for m in mappings
+                        ]
+
+                    return result
                 
             except Exception as e:
                 return {
@@ -406,10 +508,11 @@ class DatabaseValidatorTool:
         """
         with Session(self.engine) as session:
             try:
-                # Get counts
-                total_apps = session.exec(select(Apps)).all()
-                total_countries = session.exec(select(Countries)).all()
-                total_mappings = session.exec(select(ApplicationCountryMapping)).all()
+                with LogStep("get_database_stats", "DatabaseValidatorTool"):
+                    # Get counts
+                    total_apps = session.exec(select(Apps)).all()
+                    total_countries = session.exec(select(Countries)).all()
+                    total_mappings = session.exec(select(AppEnvironmentCountryMapping)).all()
                 
                 active_apps = [app for app in total_apps if app.is_active]
                 active_countries = [country for country in total_countries if country.is_active]
@@ -517,6 +620,7 @@ def get_app_countries(app_code: str) -> str:
         JSON string with app's countries information
     """
     validator = DatabaseValidatorTool()
+    app_code = (app_code or "").strip()
     result = validator.get_app_countries(app_code)
     return json.dumps(result, indent=2)
 
@@ -531,6 +635,7 @@ def get_country_apps(country_code: str) -> str:
         JSON string with country's apps information
     """
     validator = DatabaseValidatorTool()
+    country_code = (country_code or "").strip()
     result = validator.get_country_apps(country_code)
     return json.dumps(result, indent=2)
 
@@ -591,4 +696,15 @@ def get_all_mappings() -> str:
     """
     validator = DatabaseValidatorTool()
     result = validator.validate_mappings()  # No filter means all mappings
+    return json.dumps(result, indent=2)
+
+def get_all_environments() -> str:
+    """
+    Get all environments from the QA Intelligence database.
+    
+    Returns:
+        JSON string with all environments information
+    """
+    validator = DatabaseValidatorTool()
+    result = validator.validate_environments()  # No filter means all environments
     return json.dumps(result, indent=2)

@@ -1,0 +1,5 @@
+{
+  "parsed": false,
+  "reason": "parse_error: Expecting property name enclosed in double quotes: line 2 column 3 (char 4)",
+  "path": "tools/gatling/target/gatling/universalsimulation-20250909084731421/js/stats.js"
+}

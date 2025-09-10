@@ -71,6 +71,15 @@ class DatabaseManager:
                 
     def create_db_and_tables(self):
         """Crear todas las tablas definidas en los modelos"""
+        # Importar modelos críticos para registrar tablas antes de create_all
+        try:
+            from database.models.performance_endpoint_results import PerformanceEndpointResults  # noqa: F401
+        except Exception:
+            pass
+        try:
+            from database.models.performance_test_executions import PerformanceTestExecution  # noqa: F401
+        except Exception:
+            pass
         SQLModel.metadata.create_all(self.engine)
     
     @contextmanager

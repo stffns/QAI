@@ -1,0 +1,1 @@
+{"parsed": true, "path": "data/perf_runs/d6ca6c87-5a72-4b2e-92d7-ec0171360c71/results/summary.json", "total": 100, "ok": 98, "ko": 2, "mean_rps": 5.0, "p95": 850.0, "p99": 1200.0, "mean_rt": 600.0, "min_rt": 100.0, "max_rt": 1500.0}

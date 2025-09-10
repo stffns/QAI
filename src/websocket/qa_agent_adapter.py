@@ -126,6 +126,13 @@ class QAAgentAdapter:
             
             # Step 11: Create the agent
             self.agent = agno_agent(**agent_args)
+            
+            # ✅ Force WebSocket-specific configuration 
+            # Override show_tool_calls for chat experience
+            if hasattr(self.agent, 'show_tool_calls'):
+                self.agent.show_tool_calls = False
+                logger.info("🔧 WebSocket override: show_tool_calls = False")
+            
             self.is_initialized = True
             
             logger.info("🎉 QA Agent successfully initialized for WebSocket!")
@@ -339,23 +346,64 @@ class QAAgentAdapter:
         except Exception as e:
             raise RuntimeError(f"Failed to get configuration sections: {e}")
     
+    def _get_config_value(self, websocket_config: dict, interface_config: dict, 
+                         websocket_key: str, interface_key: str, default_value):
+        """
+        Helper method to get configuration values with fallback chain.
+        
+        Args:
+            websocket_config: WebSocket specific configuration
+            interface_config: Interface configuration
+            websocket_key: Key to look for in websocket_config
+            interface_key: Key to look for in interface_config
+            default_value: Default value if not found in either config
+            
+        Returns:
+            Configuration value with proper fallback
+        """
+        return websocket_config.get(websocket_key, 
+                                  interface_config.get(interface_key, default_value))
+
     def _prepare_base_agent_args(self, model, instructions, tools, storage, interface_config):
         """Prepare base agent arguments exactly like run_qa_agent.py"""
+        # Get WebSocket specific configuration from agent_config.yaml
+        import yaml
+        try:
+            with open("agent_config.yaml", "r") as f:
+                raw_config = yaml.safe_load(f)
+            websocket_config = raw_config.get("websocket", {})
+            logger.info(f"🔧 WebSocket config loaded: {websocket_config}")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not load WebSocket config: {e}")
+            websocket_config = {}
+        
+        logger.info(f"🔧 Interface config show_tool_calls: {interface_config.get('show_tool_calls', 'NOT_FOUND')}")
+        
+        # Get streaming configuration from model config
+        model_config = self.config.get_model_config()
+        stream_enabled = model_config.get("stream", False)
+        logger.info(f"🔧 Model config: {model_config}")
+        logger.info(f"🔧 Stream value from config: {stream_enabled}")
+        
         agent_args = {
             "model": model,
             "instructions": instructions,
             "tools": tools,
             "memory": storage,
-            "show_tool_calls": interface_config.get("show_tool_calls", True),
-            "markdown": interface_config.get("enable_markdown", True),
+            "show_tool_calls": self._get_config_value(websocket_config, interface_config, 
+                                                   "show_tool_calls", "show_tool_calls", False),
+            "markdown": self._get_config_value(websocket_config, interface_config,
+                                             "markdown", "enable_markdown", True),
             "add_history_to_messages": storage is not None,
             "user_id": self.user_id,  # ⭐ Contexto de usuario QA
+            "stream": stream_enabled,  # ⭐ Use configuration value
         }
         
         logger.info(f"👤 User ID: {self.user_id}")
         logger.info(f"🔧 Show tool calls: {agent_args['show_tool_calls']}")
         logger.info(f"📝 Markdown enabled: {agent_args['markdown']}")
         logger.info(f"📚 History in messages: {agent_args['add_history_to_messages']}")
+        logger.info(f"📡 Streaming enabled: {agent_args['stream']}")
         
         return agent_args
     
@@ -478,6 +526,63 @@ class QAAgentAdapter:
             logger.error(f"📍 Error trace:\n{traceback.format_exc()}")
             return error_msg
     
+    async def _is_technical_event(self, chunk_str: str) -> bool:
+        """Check if a chunk contains technical events that should be filtered out."""
+        technical_terms = [
+            'RunResponseContentEvent', 'created_at=', 'agent_id=', 'run_id=', 
+            'session_id=', 'team_session_id=', 'content_type=', 'thinking=',
+            'reasoning_content=', 'citations=', 'response_audio=', 'image=', 'extra_data='
+        ]
+        return any(tech_term in chunk_str for tech_term in technical_terms)
+
+    async def _extract_chunk_content(self, chunk) -> str:
+        """Extract clean content from a response chunk."""
+        if hasattr(chunk, 'content') and chunk.content:
+            content = str(chunk.content).strip()
+            return content if content else ""
+        elif chunk and isinstance(chunk, str):
+            chunk_str = chunk.strip()
+            if chunk_str and not self._is_technical_event(chunk_str):
+                return chunk_str
+        else:
+            chunk_str = str(chunk).strip()
+            if chunk_str and not chunk_str.startswith('RunResponseContentEvent'):
+                return chunk_str
+        return ""
+
+    async def _process_generator_response(self, response) -> str:
+        """Process generator response and convert to single response."""
+        try:
+            logger.info("🔧 Converting generator response to single response")
+            response_parts = []
+            
+            for chunk in response:
+                content = self._extract_chunk_content(chunk)
+                if content:
+                    response_parts.append(content)
+            
+            if response_parts:
+                result = ''.join(response_parts).strip()
+                logger.info(f"✅ Generator processed: {len(result)} characters")
+                return result
+            else:
+                logger.warning("⚠️ Generator was empty or contained only technical events")
+                return "No response generated"
+                
+        except Exception as e:
+            logger.error(f"❌ Error processing generator response: {e}")
+            return f"Error processing response: {e}"
+
+    async def _extract_response_content(self, response) -> str:
+        """Extract response content with detailed handling."""
+        if hasattr(response, 'content') and response.content:
+            return str(response.content)
+        elif hasattr(response, 'text') and response.text:
+            return str(response.text)
+        else:
+            logger.warning(f"⚠️ Unexpected response format: {type(response)}")
+            return str(response) if response else "No response generated"
+
     async def process_message(
         self, 
         message: str,
@@ -486,7 +591,7 @@ class QAAgentAdapter:
         metadata: Optional[Dict[str, Any]] = None
     ) -> str:
         """
-        Process message with additional context - required by QAAgentProtocol
+        Process a single message and return complete response
         
         Args:
             message: User message to process
@@ -502,7 +607,7 @@ class QAAgentAdapter:
             if self.initialization_error:
                 error_msg += f": {self.initialization_error}"
             return error_msg
-        
+
         try:
             # Log context information
             context_info = []
@@ -519,19 +624,14 @@ class QAAgentAdapter:
             # Use the agent's run method (same as chat_interface.py)
             response = self.agent.run(message)
             
-            # Extract response content with detailed handling
-            if hasattr(response, 'content') and response.content:
-                result = str(response.content)
-                logger.info(f"✅ Message processed successfully: {len(result)} characters")
-                return result
-            elif hasattr(response, 'text') and response.text:
-                result = str(response.text)
-                logger.info(f"✅ Message processed successfully: {len(result)} characters")
-                return result
+            # Handle generator response (convert to single response)
+            if hasattr(response, '__iter__') and not isinstance(response, (str, bytes)):
+                result = self._process_generator_response(response)
             else:
-                result = str(response) if response else "No response generated"
-                logger.warning(f"⚠️ Unexpected response format: {type(response)}")
-                return result
+                result = self._extract_response_content(response)
+            
+            logger.info(f"✅ Message processed successfully: {len(result)} characters")
+            return result
                 
         except Exception as e:
             error_msg = f"❌ Error processing message: {e}"
@@ -578,33 +678,89 @@ class QAAgentAdapter:
             logger.info(f"🔄 Processing STREAMING message with context: {', '.join(context_info)}")
             logger.info(f"💬 Message: {message[:100]}...")
             
-            # Check if agent supports streaming
-            if hasattr(self.agent, 'stream') and callable(getattr(self.agent, 'stream')):
-                # Use native streaming if available
-                logger.info("📡 Using native agent streaming")
-                async for chunk in self.agent.stream(message):
-                    if chunk:
-                        yield str(chunk)
-                        await asyncio.sleep(0.01)  # Small delay for smooth streaming
-            else:
-                # Fallback: simulate streaming by chunking response
-                logger.info("📡 Using simulated streaming (chunking response)")
+            # Try native Agno streaming based on configuration
+            model_config = self.config.get_model_config()
+            stream_enabled = model_config.get("stream", False)
+            logger.info(f"🔧 Stream config for run: {stream_enabled}")
+            
+            try:
+                logger.info(f"📡 Attempting Agno agent with streaming={stream_enabled}")
+                response = self.agent.run(message, stream=stream_enabled)
+                
+                # Check if response is iterable (streaming)
+                try:
+                    response_iter = iter(response)
+                    logger.info("✅ Native streaming confirmed")
+                    
+                    # Buffer for accumulating chunks to preserve Markdown formatting
+                    content_buffer = ""
+                    
+                    def is_markdown_block_complete(text: str) -> bool:
+                        """Check if the text contains complete Markdown structures"""
+                        # Check for complete sentences (ending with punctuation)
+                        if text.strip().endswith(('.', '!', '?', ':', ';')):
+                            return True
+                        # Check for complete code blocks
+                        if '```' in text:
+                            code_blocks = text.count('```')
+                            return code_blocks % 2 == 0  # Even number means closed blocks
+                        # Check for complete list items
+                        if text.strip().endswith(('\n-', '\n*', '\n+')):
+                            return True
+                        # Check for complete headers or bold/italic text
+                        if any(text.strip().endswith(marker) for marker in ['#', '**', '*', '__', '_']):
+                            return False
+                        # If buffer is getting too long, send anyway
+                        if len(text) > 100:
+                            return True
+                        return False
+                    
+                    # Handle streaming response from Agno
+                    for chunk in response_iter:
+                        chunk_content = ""
+                        
+                        # Extract content based on chunk type
+                        if hasattr(chunk, 'event') and chunk.event == "RunResponseContent":
+                            if hasattr(chunk, 'content') and chunk.content:
+                                chunk_content = str(chunk.content)
+                        elif hasattr(chunk, 'content') and chunk.content and not hasattr(chunk, 'event'):
+                            chunk_content = str(chunk.content)
+                        elif isinstance(chunk, str):
+                            chunk_content = chunk
+                        
+                        if chunk_content:
+                            content_buffer += chunk_content
+                            
+                            # Check if we have a complete Markdown block
+                            if is_markdown_block_complete(content_buffer):
+                                yield content_buffer
+                                content_buffer = ""
+                                await asyncio.sleep(0.05)  # Slightly longer delay for better formatting
+                    
+                    # Send any remaining content in buffer
+                    if content_buffer.strip():
+                        yield content_buffer
+                    
+                    return
+                    
+                except TypeError:
+                    # Not iterable, handle as single response
+                    logger.info("📡 Single response received, converting to streaming")
+                    content = getattr(response, 'content', str(response)) if response else "No response generated"
+                    
+            except Exception as e:
+                # Fallback to regular run without streaming
+                logger.info(f"📡 Fallback to simulated streaming due to: {e}")
                 response = self.agent.run(message)
-                
-                # Extract response content
-                if hasattr(response, 'content') and response.content:
-                    content = str(response.content)
-                elif hasattr(response, 'text') and response.text:
-                    content = str(response.text)
-                else:
-                    content = str(response) if response else "No response generated"
-                
-                # Send in chunks
-                chunk_size = 50  # Characters per chunk
-                for i in range(0, len(content), chunk_size):
-                    chunk = content[i:i + chunk_size]
-                    yield chunk
-                    await asyncio.sleep(0.05)  # Delay between chunks for streaming effect
+                content = getattr(response, 'content', str(response)) if response else "No response generated"
+            
+            # Convert single response to streaming chunks
+            chunk_size = 50  # Characters per chunk
+            content_str = str(content)
+            for i in range(0, len(content_str), chunk_size):
+                chunk = content_str[i:i + chunk_size]
+                yield chunk
+                await asyncio.sleep(0.05)  # Delay between chunks for streaming effect
                     
             logger.info("✅ Streaming message processed successfully")
                 
@@ -637,13 +793,14 @@ class QAAgentAdapter:
         """
         try:
             recommended_model = context.get('model')
-            current_model = getattr(self.agent.model, 'id', None) if hasattr(self.agent, 'model') else None
+            current_model = getattr(self.agent.model, 'id', None) if (self.agent and hasattr(self.agent, 'model') and self.agent.model) else None
             
             if recommended_model and current_model != recommended_model:
                 logger.info(f"🔄 Switching model: {current_model} → {recommended_model}")
                 
                 # Update agent's model configuration
-                if hasattr(self.agent, 'model') and hasattr(self.agent.model, 'id'):
+                if (self.agent and hasattr(self.agent, 'model') and self.agent.model and 
+                    hasattr(self.agent.model, 'id')):
                     self.agent.model.id = recommended_model
                     logger.info(f"✅ Model switched to: {recommended_model}")
                 else:
