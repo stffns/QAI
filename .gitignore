@@ -157,6 +157,11 @@ tools/gatling/src/test/java/example/Simulation*.java
 !tools/gatling/src/test/java/example/BasicSimulation.java
 !tools/gatling/src/test/java/example/UniversalSimulation.java
 
+# Performance test results and data (exclude from repo)
+data/perf_runs/
+data/perf_archive/
+tools/gatling/target/
+
 # Development docs
 docs/initialStage/
 docs/*_improvement.md

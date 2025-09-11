@@ -18,6 +18,7 @@ from .config_builder import ConfigBuilder
 from .dto import RunStatus, RunSubmitted, SimulationParams, ScenarioParams
 from .guardrails import Guardrails
 from .ports import RunnerPort, StatusReaderPort
+from .auto_cleanup import PerformanceAutoCleanup
 
 # DB repositories and UoW
 try:
@@ -65,6 +66,8 @@ class PerformanceOrchestrator:
         self.runner = runner
         self.status_reader = status_reader
         self.uow_factory = uow_factory
+        # Initialize auto-cleanup with same database access
+        self.auto_cleanup = PerformanceAutoCleanup(uow_factory)
 
     # Placeholder: In next step, inject UnitOfWorkFactory to resolve DB mappings
     def _resolve_endpoint_url(self, params: SimulationParams) -> str:
@@ -289,6 +292,14 @@ class PerformanceOrchestrator:
                                 self._persist_summary_data(execution_id, summary, run_results, uow)
                         except Exception:
                             pass
+                        
+                        # Trigger auto-cleanup after successful execution
+                        if reader_status.status == "succeeded":
+                            try:
+                                self.auto_cleanup.post_execution_cleanup()
+                                logger.info(f"🧹 Auto-cleanup completed after successful execution {execution_id}")
+                            except Exception as e:
+                                logger.warning(f"⚠️  Auto-cleanup failed after execution {execution_id}: {e}")
             except Exception:
                 pass
 
@@ -332,6 +343,12 @@ class PerformanceOrchestrator:
                     # Reflect detection in chosen status
                     if detected_status == "succeeded":
                         chosen = RunStatus(execution_id=execution_id, status="succeeded", finished_at=datetime.utcnow())
+                        # Trigger auto-cleanup after successful execution detection
+                        try:
+                            self.auto_cleanup.post_execution_cleanup()
+                            logger.info(f"🧹 Auto-cleanup completed after successful execution detection {execution_id}")
+                        except Exception as e:
+                            logger.warning(f"⚠️  Auto-cleanup failed after execution detection {execution_id}: {e}")
                     elif detected_status == "failed":
                         chosen = RunStatus(execution_id=execution_id, status="failed", finished_at=datetime.utcnow())
             except Exception:

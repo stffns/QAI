@@ -159,3 +159,10 @@ websocket:
   markdown: true
   stream: true
   brief_responses: true
+
+performance:
+  auto_cleanup:
+    enabled: true
+    keep_recent: 1
+    archive_retention_days: 7
+    cleanup_gatling_reports: true
