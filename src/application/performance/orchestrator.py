@@ -560,17 +560,21 @@ class PerformanceOrchestrator:
                     endpoint_name=name,
                     endpoint_url=item.get("url"),  # Enhanced data may include URL
                     http_method=item.get("method", "GET"),  # Enhanced data may include method
-                    total_requests=int(item.get("total") or 0),
-                    successful_requests=int(item.get("ok") or 0),
-                    failed_requests=int(item.get("ko") or 0),
-                    p50_response_time=_flt(item.get("p50")),
-                    p75_response_time=_flt(item.get("p75")),
-                    p95_response_time=_flt(item.get("p95")),
-                    p99_response_time=_flt(item.get("p99")),
-                    avg_response_time=_flt(item.get("mean_rt")),
-                    max_response_time=_flt(item.get("max_rt")),
-                    min_response_time=_flt(item.get("min_rt")),
-                    requests_per_second=_flt(item.get("mean_rps")),
+                    # Use correct field names from summary.json structure
+                    total_requests=int(item.get("total_requests") or item.get("total") or 0),
+                    successful_requests=int(item.get("successful_requests") or item.get("ok") or 0),
+                    failed_requests=int(item.get("failed_requests") or item.get("ko") or 0),
+                    p50_response_time=_flt(item.get("p50_response_time") or item.get("p50")),
+                    p75_response_time=_flt(item.get("p75_response_time") or item.get("p75")),
+                    p95_response_time=_flt(item.get("p95_response_time") or item.get("p95")),
+                    p99_response_time=_flt(item.get("p99_response_time") or item.get("p99")),
+                    avg_response_time=_flt(item.get("avg_response_time") or item.get("mean_rt")),
+                    max_response_time=_flt(item.get("max_response_time") or item.get("max_rt")),
+                    min_response_time=_flt(item.get("min_response_time") or item.get("min_rt")),
+                    requests_per_second=_flt(item.get("requests_per_second") or item.get("mean_rps")),
                 )
-        except Exception:
+        except Exception as e:
+            # Log endpoint processing error for debugging
+            print(f"Warning: Failed to persist endpoint results for {execution_id}: {e}")
+            # Continue processing rather than failing completely
             pass
