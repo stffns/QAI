@@ -6,18 +6,24 @@ This module provides OAuth/OIDC authentication for testing scenarios
 and various authentication methods and middleware for securing the QA workflows.
 """
 
-from .models.oauth_models import (
-    OAuthUser,
-    OAuthApplication,
-    OAuthCountry,
-    OAuthJWK,
-    OAuthEnvironmentConfig,
-    OAuthToken,
-    OAuthEnvironment,
-    OAuthProduct,
-    Gender,
-    TokenType,
-)
+# Import modern consolidated OAuth models
+try:
+    from database.models.oauth import (
+        OAuthUsers as OAuthUser,
+        OAuthAppClients as OAuthApplication,
+        OAuthJWKs as OAuthJWK,
+    )
+except ImportError:  # pragma: no cover
+    OAuthUser = OAuthApplication = OAuthJWK = None  # type: ignore
+
+# Legacy enums / types no longer provided here; keep placeholders for compatibility
+OAuthCountry = None  # Removed legacy model
+OAuthEnvironmentConfig = None  # Removed legacy model
+OAuthToken = None  # Token history model not migrated yet
+OAuthEnvironment = None  # Use config enums elsewhere if needed
+OAuthProduct = None
+Gender = None
+TokenType = None
 
 try:
     from .services.oauth_service import (
@@ -36,12 +42,5 @@ __all__ = [
     # Models
     "OAuthUser",
     "OAuthApplication", 
-    "OAuthCountry",
     "OAuthJWK",
-    "OAuthEnvironmentConfig",
-    "OAuthToken",
-    "OAuthEnvironment",
-    "OAuthProduct", 
-    "Gender",
-    "TokenType",
 ]

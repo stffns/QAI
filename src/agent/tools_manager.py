@@ -215,6 +215,25 @@ class ToolsManager:
                 essential=False,
                 config={}
             ),
+            # OAuth Tools for authentication token generation
+            "oauth_generate_token": ToolConfig(
+                name="oauth_generate_token",
+                enabled=enabled_tool_names.get("oauth_generate_token", True),
+                essential=False,
+                config={}
+            ),
+            "oauth_list_configurations": ToolConfig(
+                name="oauth_list_configurations",
+                enabled=enabled_tool_names.get("oauth_list_configurations", True),
+                essential=False,
+                config={}
+            ),
+            "oauth_validate_setup": ToolConfig(
+                name="oauth_validate_setup",
+                enabled=enabled_tool_names.get("oauth_validate_setup", True),
+                essential=False,
+                config={}
+            ),
             # Performance tools (new implementation) - disabled by default
             "perf_submit_run": ToolConfig(
                 name="perf_submit_run",
@@ -371,6 +390,8 @@ class ToolsManager:
                 tool = self._load_sql_tool(tool_config)
             elif tool_config.name in ["api_test_endpoint", "api_health_check"]:
                 tool = self._load_api_tool(tool_config)
+            elif tool_config.name in ["oauth_generate_token", "oauth_list_configurations", "oauth_validate_setup"]:
+                tool = self._load_oauth_tool(tool_config)
             elif tool_config.name in [
                 "perf_submit_run",
                 "perf_get_status",
@@ -639,6 +660,39 @@ class ToolsManager:
             return tool_mapping[tool_config.name]
         except ImportError as e:
             raise ToolLoadError(f"Performance tool {tool_config.name} not available: {e}")
+
+    def _load_oauth_tool(self, tool_config: ToolConfig) -> Any:
+        """Load individual OAuth tool for authentication token generation"""
+        try:
+            # Import the OAuth tools with proper paths
+            import sys
+            import os
+            
+            # Add the project root to the path
+            project_root = os.path.join(os.path.dirname(__file__), "..", "..")
+            if project_root not in sys.path:
+                sys.path.append(project_root)
+            
+            from src.agent.tools.oauth_tools import (
+                generate_oauth_token,
+                list_oauth_configurations,
+                validate_oauth_setup,
+            )
+            
+            # Map tool config name to actual function
+            tool_mapping = {
+                "oauth_generate_token": generate_oauth_token,
+                "oauth_list_configurations": list_oauth_configurations,
+                "oauth_validate_setup": validate_oauth_setup,
+            }
+            
+            if tool_config.name not in tool_mapping:
+                raise ToolLoadError(f"Unknown OAuth tool: {tool_config.name}")
+            
+            return tool_mapping[tool_config.name]
+            
+        except ImportError as e:
+            raise ToolLoadError(f"OAuth tool {tool_config.name} not available: {e}")
 
     def _validate_tool(self, tool: Any, tool_name: str) -> None:
         """

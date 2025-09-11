@@ -7,6 +7,7 @@ con configuración técnica centralizada para testing.
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship, JSON, Column
+from sqlalchemy import UniqueConstraint, Index
 from sqlalchemy import JSON as SQLAlchemyJSON
 from decimal import Decimal
 from pydantic import field_validator, model_validator
@@ -29,7 +30,11 @@ class AppEnvironmentCountryMapping(SQLModel, table=True):
     Reemplaza las tablas fragmentadas application_country_mapping
     y application_environment_configs con una sola fuente de verdad.
     """
-    __tablename__ = 'app_environment_country_mappings'
+    __tablename__ = 'app_environment_country_mappings'  # type: ignore[assignment]
+    __table_args__ = (
+        UniqueConstraint('application_id', 'environment_id', 'country_id', name='uq_app_env_country'),
+        Index('ix_app_env_country_ids', 'application_id', 'environment_id', 'country_id'),
+    )
     
     # Primary key
     id: Optional[int] = Field(default=None, primary_key=True)

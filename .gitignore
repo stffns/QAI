@@ -136,6 +136,11 @@ cache/
 logs/
 .idea/
 .auth_cache.json
+.vscode/
+
+# Ignore only explicitly marked temporary migration drafts (do NOT ignore all migrate_*.py anymore)
+database/_tmp_migrate_*.py
+database/_draft_migrate_*.py
 
 # Development and test files
 test_*.py

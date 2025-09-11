@@ -43,6 +43,7 @@ src/auth/
 ### Tablas Principales
 
 #### `oauth_users`
+
 ```sql
 CREATE TABLE oauth_users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,6 +62,7 @@ CREATE TABLE oauth_users (
 ```
 
 #### `oauth_jwks`
+
 ```sql
 CREATE TABLE oauth_jwks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,6 +76,7 @@ CREATE TABLE oauth_jwks (
 ```
 
 #### `oauth_app_clients`
+
 ```sql
 CREATE TABLE oauth_app_clients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,6 +115,7 @@ python src/auth/qa_oauth_tool.py --list
 ```
 
 Salida esperada:
+
 ```
 📋 CONFIGURACIONES OAUTH DISPONIBLES
 ==================================================
@@ -129,6 +133,7 @@ python src/auth/qa_oauth_tool.py EVA STA RO
 ```
 
 Salida esperada:
+
 ```
 🎉 TOKEN OAUTH GENERADO EXITOSAMENTE
 ============================================================
@@ -176,7 +181,7 @@ La migración automáticamente inserta:
 
 1. **JWK para STA** (SCIK-QA-STA-20210408-47QNY)
 2. **Client OAuth para EVA STA** (84d70f23-df50-4ed2-9d60-263366326c9d)
-3. **Usuario de prueba** (qa.auto.soco.ro+2@gmail.com)
+3. **Usuario de prueba** (<qa.auto.soco.ro+2@gmail.com>)
 
 ### Agregar Nuevas Configuraciones
 
@@ -292,6 +297,7 @@ print(json.dumps(payload, indent=2))
 **Problema**: `Configuration not found: EVA STA RO`
 
 **Solución**:
+
 1. Verificar que existe el mapping: `SELECT * FROM app_environment_country_mappings WHERE ...`
 2. Ejecutar migración si es necesario: `python src/auth/migrations/integrate_existing_oauth_tables.py`
 
@@ -300,6 +306,7 @@ print(json.dumps(payload, indent=2))
 **Problema**: `Incomplete configuration, missing: oauth_user`
 
 **Solución**:
+
 1. Listar configuraciones: `python src/auth/qa_oauth_tool.py --list`
 2. Agregar componentes faltantes (usuario, JWK, client) según sección "Agregar Nuevas Configuraciones"
 
@@ -308,6 +315,7 @@ print(json.dumps(payload, indent=2))
 **Problema**: `QAI Database not found: data/qa_intelligence.db`
 
 **Solución**:
+
 1. Verificar ruta de trabajo: `pwd` debe ser el directorio raíz del proyecto QAI
 2. Verificar que existe la base de datos: `ls -la data/qa_intelligence.db`
 
@@ -375,6 +383,7 @@ if __name__ == "__main__":
 ### 🎯 Resultado Final
 
 **Configuración EVA STA RO completamente funcional:**
+
 - ✅ Usuario OAuth: `qa.auto.soco.ro+2@gmail.com`
 - ✅ JWK activo: `SCIK-QA-STA-20210408-47QNY`
 - ✅ Client OAuth: `84d70f23-df50-4ed2-9d60-263366326c9d`
