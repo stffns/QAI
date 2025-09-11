@@ -346,24 +346,6 @@ class QAAgentAdapter:
         except Exception as e:
             raise RuntimeError(f"Failed to get configuration sections: {e}")
     
-    def _get_config_value(self, websocket_config: dict, interface_config: dict, 
-                         websocket_key: str, interface_key: str, default_value):
-        """
-        Helper method to get configuration values with fallback chain.
-        
-        Args:
-            websocket_config: WebSocket specific configuration
-            interface_config: Interface configuration
-            websocket_key: Key to look for in websocket_config
-            interface_key: Key to look for in interface_config
-            default_value: Default value if not found in either config
-            
-        Returns:
-            Configuration value with proper fallback
-        """
-        return websocket_config.get(websocket_key, 
-                                  interface_config.get(interface_key, default_value))
-
     def _prepare_base_agent_args(self, model, instructions, tools, storage, interface_config):
         """Prepare base agent arguments exactly like run_qa_agent.py"""
         # Get WebSocket specific configuration from agent_config.yaml
@@ -390,10 +372,9 @@ class QAAgentAdapter:
             "instructions": instructions,
             "tools": tools,
             "memory": storage,
-            "show_tool_calls": self._get_config_value(websocket_config, interface_config, 
-                                                   "show_tool_calls", "show_tool_calls", False),
-            "markdown": self._get_config_value(websocket_config, interface_config,
-                                             "markdown", "enable_markdown", True),
+            # Use WebSocket specific config, fallback to interface config, then default False
+            "show_tool_calls": websocket_config.get("show_tool_calls", interface_config.get("show_tool_calls", False)),
+            "markdown": websocket_config.get("markdown", interface_config.get("enable_markdown", True)),
             "add_history_to_messages": storage is not None,
             "user_id": self.user_id,  # ⭐ Contexto de usuario QA
             "stream": stream_enabled,  # ⭐ Use configuration value
@@ -526,63 +507,6 @@ class QAAgentAdapter:
             logger.error(f"📍 Error trace:\n{traceback.format_exc()}")
             return error_msg
     
-    async def _is_technical_event(self, chunk_str: str) -> bool:
-        """Check if a chunk contains technical events that should be filtered out."""
-        technical_terms = [
-            'RunResponseContentEvent', 'created_at=', 'agent_id=', 'run_id=', 
-            'session_id=', 'team_session_id=', 'content_type=', 'thinking=',
-            'reasoning_content=', 'citations=', 'response_audio=', 'image=', 'extra_data='
-        ]
-        return any(tech_term in chunk_str for tech_term in technical_terms)
-
-    async def _extract_chunk_content(self, chunk) -> str:
-        """Extract clean content from a response chunk."""
-        if hasattr(chunk, 'content') and chunk.content:
-            content = str(chunk.content).strip()
-            return content if content else ""
-        elif chunk and isinstance(chunk, str):
-            chunk_str = chunk.strip()
-            if chunk_str and not self._is_technical_event(chunk_str):
-                return chunk_str
-        else:
-            chunk_str = str(chunk).strip()
-            if chunk_str and not chunk_str.startswith('RunResponseContentEvent'):
-                return chunk_str
-        return ""
-
-    async def _process_generator_response(self, response) -> str:
-        """Process generator response and convert to single response."""
-        try:
-            logger.info("🔧 Converting generator response to single response")
-            response_parts = []
-            
-            for chunk in response:
-                content = self._extract_chunk_content(chunk)
-                if content:
-                    response_parts.append(content)
-            
-            if response_parts:
-                result = ''.join(response_parts).strip()
-                logger.info(f"✅ Generator processed: {len(result)} characters")
-                return result
-            else:
-                logger.warning("⚠️ Generator was empty or contained only technical events")
-                return "No response generated"
-                
-        except Exception as e:
-            logger.error(f"❌ Error processing generator response: {e}")
-            return f"Error processing response: {e}"
-
-    async def _extract_response_content(self, response) -> str:
-        """Extract response content with detailed handling."""
-        if hasattr(response, 'content') and response.content:
-            return str(response.content)
-        elif hasattr(response, 'text') and response.text:
-            return str(response.text)
-        else:
-            logger.warning(f"⚠️ Unexpected response format: {type(response)}")
-            return str(response) if response else "No response generated"
-
     async def process_message(
         self, 
         message: str,
@@ -591,7 +515,7 @@ class QAAgentAdapter:
         metadata: Optional[Dict[str, Any]] = None
     ) -> str:
         """
-        Process a single message and return complete response
+        Process message with additional context - required by QAAgentProtocol
         
         Args:
             message: User message to process
@@ -607,7 +531,7 @@ class QAAgentAdapter:
             if self.initialization_error:
                 error_msg += f": {self.initialization_error}"
             return error_msg
-
+        
         try:
             # Log context information
             context_info = []
@@ -626,12 +550,57 @@ class QAAgentAdapter:
             
             # Handle generator response (convert to single response)
             if hasattr(response, '__iter__') and not isinstance(response, (str, bytes)):
-                result = self._process_generator_response(response)
-            else:
-                result = self._extract_response_content(response)
+                try:
+                    # If it's a generator, collect all chunks into a single response
+                    logger.info("🔧 Converting generator response to single response")
+                    response_parts = []
+                    for chunk in response:
+                        # Extract clean content from chunk
+                        if hasattr(chunk, 'content') and chunk.content:
+                            content = str(chunk.content).strip()
+                            if content:
+                                response_parts.append(content)
+                        elif chunk and isinstance(chunk, str):
+                            # For string chunks, filter out technical events but keep actual responses
+                            chunk_str = chunk.strip()
+                            if chunk_str and not any(tech_term in chunk_str for tech_term in [
+                                'RunResponseContentEvent', 'created_at=', 'agent_id=', 'run_id=', 
+                                'session_id=', 'team_session_id=', 'content_type=', 'thinking=',
+                                'reasoning_content=', 'citations=', 'response_audio=', 'image=', 'extra_data='
+                            ]):
+                                response_parts.append(chunk_str)
+                        else:
+                            # For other types, convert to string and check
+                            chunk_str = str(chunk).strip()
+                            if chunk_str and not chunk_str.startswith('RunResponseContentEvent'):
+                                response_parts.append(chunk_str)
+                    
+                    if response_parts:
+                        # Join chunks without spaces to preserve natural formatting
+                        result = ''.join(response_parts).strip()
+                        logger.info(f"✅ Message processed successfully: {len(result)} characters (from generator)")
+                        return result
+                    else:
+                        logger.warning("⚠️ Generator was empty or contained only technical events")
+                        return "No response generated"
+                        
+                except Exception as e:
+                    logger.error(f"❌ Error processing generator response: {e}")
+                    return f"Error processing response: {e}"
             
-            logger.info(f"✅ Message processed successfully: {len(result)} characters")
-            return result
+            # Extract response content with detailed handling
+            if hasattr(response, 'content') and response.content:
+                result = str(response.content)
+                logger.info(f"✅ Message processed successfully: {len(result)} characters")
+                return result
+            elif hasattr(response, 'text') and response.text:
+                result = str(response.text)
+                logger.info(f"✅ Message processed successfully: {len(result)} characters")
+                return result
+            else:
+                result = str(response) if response else "No response generated"
+                logger.warning(f"⚠️ Unexpected response format: {type(response)}")
+                return result
                 
         except Exception as e:
             error_msg = f"❌ Error processing message: {e}"

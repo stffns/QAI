@@ -14,6 +14,9 @@ from sqlmodel import SQLModel
 
 from .interfaces import IUnitOfWork, IRepository
 from .users import UserRepository
+from .apps_repository import AppsRepository
+from .countries_repository import CountriesRepository
+from .environments_repository import EnvironmentsRepository
 from .app_environment_country_mappings_repository import AppEnvironmentCountryMappingRepository
 from .exceptions import RepositoryError
 
@@ -46,6 +49,27 @@ class UnitOfWork(IUnitOfWork):
         if 'users' not in self._repositories:
             self._repositories['users'] = UserRepository(self._session)
         return cast(UserRepository, self._repositories['users'])
+
+    @property
+    def apps(self) -> AppsRepository:
+        """Get or create AppsRepository"""
+        if 'apps' not in self._repositories:
+            self._repositories['apps'] = AppsRepository(self._session)
+        return cast(AppsRepository, self._repositories['apps'])
+
+    @property
+    def countries(self) -> CountriesRepository:
+        """Get or create CountriesRepository"""
+        if 'countries' not in self._repositories:
+            self._repositories['countries'] = CountriesRepository(self._session)
+        return cast(CountriesRepository, self._repositories['countries'])
+
+    @property
+    def environments(self) -> EnvironmentsRepository:
+        """Get or create EnvironmentsRepository"""
+        if 'environments' not in self._repositories:
+            self._repositories['environments'] = EnvironmentsRepository(self._session)
+        return cast(EnvironmentsRepository, self._repositories['environments'])
     
     @property
     def app_environment_country_mappings(self) -> AppEnvironmentCountryMappingRepository:

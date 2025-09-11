@@ -207,7 +207,7 @@ class WebSocketServer:
         Check if the agent manager supports streaming responses.
         
         Returns:
-            bool: True if streaming is supported, False otherwise
+            bool: True if streaming is supported and enabled, False otherwise
         """
         return hasattr(self.manager, 'process_chat_message_stream')
     
