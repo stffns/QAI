@@ -162,6 +162,14 @@ data/perf_runs/
 data/perf_archive/
 tools/gatling/target/
 
+# Monitoring and health check data (runtime generated)
+data/monitoring/
+health_report.json
+
+# SQLite WAL and SHM files (runtime generated)
+*.db-shm
+*.db-wal
+
 # Development docs
 docs/initialStage/
 docs/*_improvement.md

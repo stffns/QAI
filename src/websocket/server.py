@@ -18,6 +18,7 @@ Architecture:
 
 import asyncio
 import json
+import logging
 import traceback
 from datetime import datetime
 from typing import Dict, Set, Optional, Any, AsyncGenerator
@@ -117,6 +118,10 @@ class WebSocketServer:
         }
         
         self.logger = get_logger("WebSocketServer")
+        
+        # Suppress routine websockets library errors to reduce noise
+        logging.getLogger("websockets.server").setLevel(logging.WARNING)
+        logging.getLogger("websockets.protocol").setLevel(logging.WARNING)
         self.logger.info("WebSocket server initialized with configuration")
     
     async def start(self) -> None:
@@ -232,7 +237,8 @@ class WebSocketServer:
                 return
             
             # Apply middleware (CORS, rate limiting, etc.)
-            if not await self.middleware.process_connection(websocket, path):
+            # Note: Temporary type casting until websockets types are unified
+            if not await self.middleware.process_connection(websocket, path):  # type: ignore
                 await websocket.close(code=1008, reason="Middleware rejected connection")
                 return
             
@@ -277,11 +283,20 @@ class WebSocketServer:
             await websocket.close(code=1008, reason="Rate limit exceeded")
             
         except ConnectionClosed:
-            self.logger.info(f"Connection closed normally for {connection_id}")
+            # This is normal - don't log as an error
+            self.logger.debug(f"Connection closed normally for {connection_id}")
             
         except WebSocketException as e:
-            self.logger.error(f"WebSocket error for {connection_id}: {e}")
-            self.metrics['errors_total'] += 1
+            # Check if this is a routine handshake failure (common with health checks)
+            error_message = str(e).lower()
+            if any(phrase in error_message for phrase in [
+                "no close frame", "connection closed", "handshake failed", 
+                "invalid", "timeout", "refused"
+            ]):
+                self.logger.debug(f"Routine WebSocket handshake issue for {connection_id}: {e}")
+            else:
+                self.logger.error(f"WebSocket error for {connection_id}: {e}")
+                self.metrics['errors_total'] += 1
             
         except Exception as e:
             self.logger.error(f"Unexpected error handling connection {connection_id}: {e}")
@@ -515,15 +530,64 @@ class WebSocketServer:
         except Exception as e:
             self.logger.error(f"Error handling chat message: {e}")
             
-            # Send error response
-            error_envelope = WebSocketEnvelopeFactory.create_error_event(
-                error_code="chat_processing_error",
-                error_message="Failed to process chat message",
-                session_id=session_id,
-                user_id=user_id,
-                correlation_id=chat_envelope.id,
-                details=f"original_envelope_id: {chat_envelope.id}"
-            )
+            # Enhanced error handling with OpenAI health information
+            try:
+                from src.websocket.health_middleware import enhance_websocket_error, should_check_openai_health
+                
+                error_message = f"Failed to process chat message: {str(e)}"
+                
+                # Check if we should include OpenAI health info
+                if should_check_openai_health(error_message):
+                    enhanced_error = await enhance_websocket_error(error_message, {
+                        "original_exception": str(e),
+                        "session_id": session_id,
+                        "user_id": user_id
+                    })
+                    
+                    # Create enhanced error response with health context
+                    details_dict = {
+                        "original_envelope_id": chat_envelope.id,
+                        "openai_health": {
+                            "status": enhanced_error.get("openai_status"),
+                            "message": enhanced_error.get("openai_message"),
+                            "likely_cause": enhanced_error.get("likely_cause"),
+                            "can_make_requests": enhanced_error.get("can_make_requests", True)
+                        } if enhanced_error.get("openai_health_checked") else None,
+                        "suggestion": enhanced_error.get("service_suggestion")
+                    }
+                    
+                    error_envelope = WebSocketEnvelopeFactory.create_error_event(
+                        error_code="chat_processing_error_with_health",
+                        error_message=enhanced_error.get("user_message", error_message),
+                        session_id=session_id,
+                        user_id=user_id,
+                        correlation_id=chat_envelope.id,
+                        details=json.dumps(details_dict)
+                    )
+                else:
+                    # Standard error response
+                    error_envelope = WebSocketEnvelopeFactory.create_error_event(
+                        error_code="chat_processing_error",
+                        error_message="Failed to process chat message",
+                        session_id=session_id,
+                        user_id=user_id,
+                        correlation_id=chat_envelope.id,
+                        details=f"original_envelope_id: {chat_envelope.id}"
+                    )
+                    
+            except Exception as health_error:
+                self.logger.error(f"Error enhancing error with health info: {health_error}")
+                
+                # Fallback to basic error response
+                error_envelope = WebSocketEnvelopeFactory.create_error_event(
+                    error_code="chat_processing_error",
+                    error_message="Failed to process chat message",
+                    session_id=session_id,
+                    user_id=user_id,
+                    correlation_id=chat_envelope.id,
+                    details=f"original_envelope_id: {chat_envelope.id}"
+                )
+            
             await self._send_event(websocket, error_envelope)
     
     async def _handle_system_event(
@@ -565,6 +629,35 @@ class WebSocketServer:
                         }
                     )
                     await self._send_event(websocket, status_envelope)
+                
+                elif system_payload.event_name == "openai_health":
+                    # Check OpenAI service health
+                    try:
+                        from src.websocket.health_middleware import get_service_status_for_websocket
+                        health_status = await get_service_status_for_websocket()
+                        
+                        health_envelope = WebSocketEnvelopeFactory.create_system_event(
+                            event_name="openai_health_status",
+                            description="OpenAI service health status",
+                            session_id=session_id,
+                            user_id=user_id,
+                            correlation_id=envelope.id,
+                            data=health_status
+                        )
+                        await self._send_event(websocket, health_envelope)
+                        
+                    except Exception as e:
+                        self.logger.error(f"Error checking OpenAI health: {e}")
+                        
+                        error_envelope = WebSocketEnvelopeFactory.create_error_event(
+                            error_code="health_check_failed",
+                            error_message="Failed to check OpenAI service health",
+                            session_id=session_id,
+                            user_id=user_id,
+                            correlation_id=envelope.id,
+                            details=str(e)
+                        )
+                        await self._send_event(websocket, error_envelope)
     
     async def _send_event(self, websocket: ServerConnection, event: WebSocketEnvelope) -> None:
         """Send WebSocket envelope to client"""

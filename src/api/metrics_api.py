@@ -989,8 +989,10 @@ async def get_execution_details(execution_id: str):
             failed_requests = getattr(execution, "failed_requests", 0) or 0
             
             success_rate = 0
+            error_rate = 0
             if total_requests > 0:
                 success_rate = (successful_requests / total_requests) * 100
+                error_rate = (failed_requests / total_requests) * 100
             
             # Process endpoint results
             endpoints_data = []
@@ -1004,8 +1006,10 @@ async def get_execution_details(execution_id: str):
                 endpoint_failed = getattr(endpoint, "failed_requests", 0) or 0
                 
                 endpoint_success_rate = 0
+                endpoint_error_rate = 0
                 if endpoint_total > 0:
                     endpoint_success_rate = (endpoint_success / endpoint_total) * 100
+                    endpoint_error_rate = (endpoint_failed / endpoint_total) * 100
                 
                 total_endpoint_requests += endpoint_total
                 total_endpoint_successes += endpoint_success
@@ -1019,7 +1023,8 @@ async def get_execution_details(execution_id: str):
                         "total": endpoint_total,
                         "successful": endpoint_success,
                         "failed": endpoint_failed,
-                        "success_rate": round(endpoint_success_rate, 2)
+                        "success_rate": round(endpoint_success_rate, 2),
+                        "error_rate": round(endpoint_error_rate, 2)
                     },
                     "response_times": {
                         "avg": getattr(endpoint, "avg_response_time", None),
@@ -1033,7 +1038,7 @@ async def get_execution_details(execution_id: str):
                     "performance": {
                         "rps": getattr(endpoint, "requests_per_second", None),
                         "max_rps": getattr(endpoint, "max_rps", None),
-                        "error_rate": getattr(endpoint, "error_rate", None),
+                        "error_rate": getattr(endpoint, "error_rate", None) or round(endpoint_error_rate, 2),
                         "performance_grade": getattr(endpoint, "performance_grade", None)
                     },
                     "test_context": {
@@ -1042,10 +1047,12 @@ async def get_execution_details(execution_id: str):
                     }
                 })
             
-            # Calculate overall endpoint success rate
+            # Calculate overall endpoint success rate and error rate
             overall_endpoint_success_rate = 0
+            overall_endpoint_error_rate = 0
             if total_endpoint_requests > 0:
                 overall_endpoint_success_rate = (total_endpoint_successes / total_endpoint_requests) * 100
+                overall_endpoint_error_rate = (total_endpoint_failures / total_endpoint_requests) * 100
             
             return {
                 "status": "success",
@@ -1073,15 +1080,16 @@ async def get_execution_details(execution_id: str):
                     "total_successful_requests": total_endpoint_successes,
                     "total_failed_requests": total_endpoint_failures,
                     "overall_endpoint_success_rate": round(overall_endpoint_success_rate, 2),
+                    "overall_endpoint_error_rate": round(overall_endpoint_error_rate, 2),
                     "execution_level_metrics": {
                         "total_requests": total_requests,
                         "successful_requests": successful_requests,
                         "failed_requests": failed_requests,
                         "success_rate": round(success_rate, 2),
+                        "error_rate": getattr(execution, "error_rate", None) or round(error_rate, 2),
                         "avg_response_time": getattr(execution, "avg_response_time", None),
                         "p95_response_time": getattr(execution, "p95_response_time", None),
                         "p99_response_time": getattr(execution, "p99_response_time", None),
-                        "error_rate": getattr(execution, "error_rate", None),
                         "avg_rps": getattr(execution, "avg_rps", None)
                     }
                 },
