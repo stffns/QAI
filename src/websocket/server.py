@@ -17,14 +17,14 @@ Architecture:
 """
 
 import asyncio
+import base64
 import json
 import logging
-import traceback
-import base64
 import os
-from pathlib import Path
+import traceback
 from contextlib import asynccontextmanager, suppress
 from datetime import datetime
+from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, Optional, Set
 
 import websockets
@@ -494,16 +494,22 @@ class WebSocketServer:
             processed_envelope = await self.middleware.process_envelope(
                 websocket, envelope, session_id, user_id  # type: ignore
             )
-            
+
             if processed_envelope is None:
                 # Middleware rejected the envelope (e.g., unsupported version)
-                self.logger.warning(f"Middleware rejected envelope with version: {envelope.version}")
+                self.logger.warning(
+                    f"Middleware rejected envelope with version: {envelope.version}"
+                )
                 await self._send_error(
-                    websocket, "middleware_rejected", f"Message rejected by middleware (version: {envelope.version})"
+                    websocket,
+                    "middleware_rejected",
+                    f"Message rejected by middleware (version: {envelope.version})",
                 )
                 return
 
-            with LogStep(f"Processing {processed_envelope.type} envelope", "WebSocketServer"):
+            with LogStep(
+                f"Processing {processed_envelope.type} envelope", "WebSocketServer"
+            ):
 
                 if processed_envelope.is_chat_message():
                     await self._handle_chat_message(
@@ -516,7 +522,9 @@ class WebSocketServer:
                     )
 
                 else:
-                    self.logger.warning(f"Unknown envelope type: {processed_envelope.type}")
+                    self.logger.warning(
+                        f"Unknown envelope type: {processed_envelope.type}"
+                    )
                     await self._send_error(
                         websocket,
                         "unknown_event",
@@ -930,13 +938,23 @@ class WebSocketServer:
                 await asyncio.sleep(1800)  # Every 30 minutes
                 if not base_dir.exists():
                     continue
-                cutoff = datetime.now(timezone.utc).timestamp() - self.upload_retention_seconds
+                cutoff = (
+                    datetime.now(timezone.utc).timestamp()
+                    - self.upload_retention_seconds
+                )
                 removed = 0
                 for child in base_dir.iterdir():
                     try:
                         if child.is_dir():
                             # Use latest mtime among files inside
-                            mt = max((p.stat().st_mtime for p in child.glob("**/*") if p.exists()), default=child.stat().st_mtime)
+                            mt = max(
+                                (
+                                    p.stat().st_mtime
+                                    for p in child.glob("**/*")
+                                    if p.exists()
+                                ),
+                                default=child.stat().st_mtime,
+                            )
                         else:
                             mt = child.stat().st_mtime
                         if mt < cutoff:
@@ -1028,13 +1046,24 @@ class WebSocketServer:
                     skipped_reasons.append(f"{name}:json_parse_error")
             inspected += 1
 
-            if json_obj is not None and collection_attachment is None and (
-                lowered.endswith(".postman_collection.json") or ("info" in json_obj and "item" in json_obj)
+            if (
+                json_obj is not None
+                and collection_attachment is None
+                and (
+                    lowered.endswith(".postman_collection.json")
+                    or ("info" in json_obj and "item" in json_obj)
+                )
             ):
                 collection_attachment = {"name": name, "path": path, "json": json_obj}
-            elif json_obj is not None and environment_attachment is None and (
-                lowered.endswith(".postman_environment.json")
-                or ("values" in json_obj and "id" in json_obj and "name" in json_obj)
+            elif (
+                json_obj is not None
+                and environment_attachment is None
+                and (
+                    lowered.endswith(".postman_environment.json")
+                    or (
+                        "values" in json_obj and "id" in json_obj and "name" in json_obj
+                    )
+                )
             ):
                 environment_attachment = {"name": name, "path": path, "json": json_obj}
             else:
@@ -1089,8 +1118,12 @@ class WebSocketServer:
 
         # Prepare temp directory for this session
         # Already saved; just reuse paths
-        collection_path = collection_attachment["path"] if collection_attachment else None
-        environment_path = environment_attachment["path"] if environment_attachment else None
+        collection_path = (
+            collection_attachment["path"] if collection_attachment else None
+        )
+        environment_path = (
+            environment_attachment["path"] if environment_attachment else None
+        )
 
         # Extract optional mapping_id from metadata
         mapping_id = None
@@ -1132,7 +1165,9 @@ class WebSocketServer:
             # Extend content (avoid excessive growth)
             try:
                 new_suffix = "\n" + "\n".join(path_lines)
-                if len(chat_payload.content) + len(new_suffix) < 9500:  # keep under limit
+                if (
+                    len(chat_payload.content) + len(new_suffix) < 9500
+                ):  # keep under limit
                     chat_payload.content += new_suffix
                 else:  # fallback minimal hint
                     chat_payload.content += "\n[ATTACHMENT] Postman collection saved. Use postman_import tool."
@@ -1146,9 +1181,9 @@ class WebSocketServer:
                 chat_payload.metadata.update(
                     {
                         "postman_collection_path": str(collection_path),
-                        "postman_environment_path": str(environment_path)
-                        if environment_path
-                        else None,
+                        "postman_environment_path": (
+                            str(environment_path) if environment_path else None
+                        ),
                         "postman_auto_import": False,
                     }
                 )
@@ -1161,9 +1196,9 @@ class WebSocketServer:
                     "session_id": session_id,
                     "user_id": user_id,
                     "collection_path": str(collection_path),
-                    "environment_path": str(environment_path)
-                    if environment_path
-                    else None,
+                    "environment_path": (
+                        str(environment_path) if environment_path else None
+                    ),
                 },
             )
             # Return False so normal chat processing continues (agent will decide)
@@ -1176,9 +1211,9 @@ class WebSocketServer:
                 event_name="postman_import_start",
                 data={
                     "collection_path": str(collection_path),
-                    "environment_path": str(environment_path)
-                    if environment_path
-                    else None,
+                    "environment_path": (
+                        str(environment_path) if environment_path else None
+                    ),
                     "mapping_id": mapping_id,
                 },
                 session_id=session_id,
@@ -1190,7 +1225,9 @@ class WebSocketServer:
             pass
 
         try:
-            from src.agent.tools.postman_tools import postman_import as postman_import_tool
+            from src.agent.tools.postman_tools import (
+                postman_import as postman_import_tool,
+            )
 
             import_result = postman_import_tool(
                 collection_path=str(collection_path),
@@ -1250,11 +1287,15 @@ class WebSocketServer:
             complete_event = WebSocketEnvelopeFactory.create_system_event(
                 event_name="postman_import_complete",
                 data={
-                    **{k: v for k, v in import_result.items() if isinstance(import_result, dict)},
+                    **{
+                        k: v
+                        for k, v in import_result.items()
+                        if isinstance(import_result, dict)
+                    },
                     "collection_path": str(collection_path),
-                    "environment_path": str(environment_path)
-                    if environment_path
-                    else None,
+                    "environment_path": (
+                        str(environment_path) if environment_path else None
+                    ),
                 },
                 session_id=session_id,
                 user_id=user_id,

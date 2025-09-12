@@ -261,3 +261,17 @@ pre-commit:
 # Performance monitoring
 benchmark:
 	$(PYTEST) benchmarks/ --benchmark-only --benchmark-sort=mean
+
+# Git workflow (solo developer)
+push-branch:
+	@echo "� Pushing current branch..."
+	@git push origin $$(git branch --show-current)
+
+prepare-pr: qa-check test push-branch
+	@echo "✅ All checks passed, ready for PR"
+	@echo "🌐 Go to: https://github.com/stffns/QAI/compare/develop...$$(git branch --show-current)"
+	@git status
+
+prepare-release: clean qa-check test
+	@echo "🚀 Preparing release..."
+	@git status

@@ -65,6 +65,11 @@ class AppEnvironmentCountryMapping(SQLModel, table=True):
         sa_column=Column(SQLAlchemyJSON),
         description="Authentication configuration"
     )
+    execution_variables: Optional[Dict[str, Any]] = Field(
+        default=None,
+        sa_column=Column(SQLAlchemyJSON),
+        description="Test execution variables and runtime values from any source"
+    )
     
     # Configuración de testing (CHECK constraints reflejados)
     performance_config: Optional[Dict[str, Any]] = Field(

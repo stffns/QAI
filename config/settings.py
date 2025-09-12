@@ -42,8 +42,8 @@ from .models import (
     InterfaceConfig,
     LoggingConfig,
     ModelConfig,
-    ToolsConfig,
     PerformanceConfig,
+    ToolsConfig,
 )
 
 
