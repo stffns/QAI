@@ -121,6 +121,8 @@ tools:
     name: oauth_list_configurations
   - enabled: true
     name: oauth_validate_setup
+  - enabled: true
+    name: postman_import
 reasoning:
   enabled: true
   type: agent
