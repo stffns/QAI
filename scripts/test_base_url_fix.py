@@ -44,9 +44,14 @@ def test_path_normalization():
             "expected": "/api/users/{userId}/profile"
         },
         {
-            "name": "Complex path with multiple variables",
+            "name": "Complex path with infrastructure variables (should be removed)",
             "input": "{{BASE_URL}}-{{ENV}}/{{COUNTRY}}/dashboard/{{COUNTRY}}",
-            "expected": "/-{ENV}/{COUNTRY}/dashboard/{COUNTRY}"
+            "expected": "/dashboard"
+        },
+        {
+            "name": "Business logic variables (should be kept)",
+            "input": "{{BASE_URL}}/api/users/{{userId}}/profile",
+            "expected": "/api/users/{userId}/profile"
         }
     ]
     

@@ -30,6 +30,14 @@ def normalize_existing_endpoints():
             WHERE endpoint_url LIKE '%{{BASE_URL}}%' 
                OR endpoint_url LIKE '%{{baseUrl}}%'
                OR endpoint_url LIKE '%{{API_URL}}%'
+               OR endpoint_url LIKE '%{{ENV}}%'
+               OR endpoint_url LIKE '%{{COUNTRY}}%'
+               OR endpoint_url LIKE '%{{env}}%'
+               OR endpoint_url LIKE '%{{country}}%'
+               OR endpoint_url LIKE '%{ENV}%'
+               OR endpoint_url LIKE '%{COUNTRY}%'
+               OR endpoint_url LIKE '%{env}%'
+               OR endpoint_url LIKE '%{country}%'
                OR endpoint_url LIKE 'http%://%'
         """)
         
@@ -109,31 +117,67 @@ def normalize_url_path(raw_path: str) -> str:
             if len(parts) > 3:
                 normalized = '/' + parts[3]
     else:
-        # Remove base URL variables from the path
-        base_url_patterns = [
+        # Remove base URL, environment, and country variables from the path
+        infrastructure_patterns = [
+            # Base URL patterns
             r'\{\{BASE_URL\}\}',
             r'\{\{baseUrl\}\}', 
             r'\{\{base_url\}\}',
             r'\{\{API_URL\}\}',
             r'\{\{api_url\}\}',
             r'\{\{HOST\}\}',
-            r'\{\{host\}\}'
+            r'\{\{host\}\}',
+            # Environment patterns  
+            r'\{\{ENV\}\}',
+            r'\{\{env\}\}',
+            r'\{\{ENVIRONMENT\}\}',
+            r'\{\{environment\}\}',
+            # Country patterns
+            r'\{\{COUNTRY\}\}',
+            r'\{\{country\}\}',
+            r'\{\{REGION\}\}',
+            r'\{\{region\}\}',
+            # Combined patterns (common in URLs like BASE_URL-ENV)
+            r'-\{\{ENV\}\}',
+            r'-\{\{env\}\}',
         ]
         
-        for pattern in base_url_patterns:
+        for pattern in infrastructure_patterns:
             normalized = re.sub(pattern, '', normalized, flags=re.IGNORECASE)
         
-        # Clean up any double slashes or leading/trailing slashes
+        # Clean up any double slashes, leading/trailing slashes, or orphaned dashes
         normalized = re.sub(r'/+', '/', normalized)
+        normalized = re.sub(r'/-+/', '/', normalized)  # Remove orphaned dashes between slashes  
+        normalized = re.sub(r'^-+', '', normalized)    # Remove leading dashes
         normalized = normalized.strip('/')
     
-    # Convert remaining Postman variables {{var}} to {var} format
+    # Convert remaining Postman variables {{var}} to {var} format AND remove infrastructure variables
     VARIABLE_PATTERN = re.compile(r"{{\s*([A-Za-z0-9_\-\.]+)\s*}}")
     def replace_postman_var(match):
         var_name = match.group(1)
+        # Skip infrastructure variables that should have been removed
+        if var_name.upper() in ['ENV', 'ENVIRONMENT', 'COUNTRY', 'REGION', 'BASE_URL', 'BASEURL', 'API_URL', 'HOST']:
+            return ''  # Remove any remaining infrastructure variables
         return f"{{{var_name}}}"
     
     normalized = VARIABLE_PATTERN.sub(replace_postman_var, normalized)
+    
+    # Also remove already converted infrastructure variables {VAR}
+    CONVERTED_VARIABLE_PATTERN = re.compile(r"{\s*([A-Za-z0-9_\-\.]+)\s*}")
+    def remove_infrastructure_vars(match):
+        var_name = match.group(1)
+        # Remove infrastructure variables
+        if var_name.upper() in ['ENV', 'ENVIRONMENT', 'COUNTRY', 'REGION', 'BASE_URL', 'BASEURL', 'API_URL', 'HOST']:
+            return ''  # Remove infrastructure variables
+        return match.group(0)  # Keep business logic variables
+    
+    normalized = CONVERTED_VARIABLE_PATTERN.sub(remove_infrastructure_vars, normalized)
+    
+    # Clean up any remaining slashes or dashes after variable removal
+    normalized = re.sub(r'/+', '/', normalized)
+    normalized = re.sub(r'/-+/', '/', normalized)
+    normalized = re.sub(r'^-+', '', normalized)
+    normalized = normalized.strip('/')
     
     # Ensure it starts with /
     if not normalized.startswith('/'):
@@ -156,12 +200,16 @@ def verify_migration():
     try:
         print("\n🔍 Verifying migration results...")
         
-        # Check for endpoints that still have full URLs or base URL variables
+        # Check for endpoints that still have infrastructure variables
         cursor.execute("""
             SELECT COUNT(*) FROM application_endpoints 
             WHERE endpoint_url LIKE '%{{BASE_URL}}%' 
                OR endpoint_url LIKE '%{{baseUrl}}%'
                OR endpoint_url LIKE '%{{API_URL}}%'
+               OR endpoint_url LIKE '%{{ENV}}%'
+               OR endpoint_url LIKE '%{{COUNTRY}}%'
+               OR endpoint_url LIKE '%{ENV}%'
+               OR endpoint_url LIKE '%{COUNTRY}%'
                OR endpoint_url LIKE 'http%://%'
         """)
         

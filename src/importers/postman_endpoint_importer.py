@@ -310,29 +310,48 @@ class PostmanEndpointImporter:
                 if len(parts) > 3:
                     normalized = '/' + parts[3]
         else:
-            # Step 3: Remove base URL variables from the path ({{BASE_URL}}, {{baseUrl}}, etc.)
-            # Common base URL variable patterns to remove
-            base_url_patterns = [
+            # Step 3: Remove base URL, environment, and country variables from the path
+            # These variables should be in the mapping table, not in endpoint paths
+            infrastructure_patterns = [
+                # Base URL patterns
                 r'\{\{BASE_URL\}\}',
                 r'\{\{baseUrl\}\}', 
                 r'\{\{base_url\}\}',
                 r'\{\{API_URL\}\}',
                 r'\{\{api_url\}\}',
                 r'\{\{HOST\}\}',
-                r'\{\{host\}\}'
+                r'\{\{host\}\}',
+                # Environment patterns  
+                r'\{\{ENV\}\}',
+                r'\{\{env\}\}',
+                r'\{\{ENVIRONMENT\}\}',
+                r'\{\{environment\}\}',
+                # Country patterns
+                r'\{\{COUNTRY\}\}',
+                r'\{\{country\}\}',
+                r'\{\{REGION\}\}',
+                r'\{\{region\}\}',
+                # Combined patterns (common in URLs like BASE_URL-ENV)
+                r'-\{\{ENV\}\}',
+                r'-\{\{env\}\}',
             ]
             
-            for pattern in base_url_patterns:
+            for pattern in infrastructure_patterns:
                 normalized = re.sub(pattern, '', normalized, flags=re.IGNORECASE)
             
-            # Clean up any double slashes or leading/trailing slashes after removing base URL
+            # Clean up any double slashes, leading/trailing slashes, or orphaned dashes
             normalized = re.sub(r'/+', '/', normalized)  # Replace multiple slashes with single
+            normalized = re.sub(r'/-+/', '/', normalized)  # Remove orphaned dashes between slashes  
+            normalized = re.sub(r'^-+', '', normalized)    # Remove leading dashes
             normalized = normalized.strip('/')
         
         # Step 4: Convert remaining Postman variables {{var}} to {var} format
-        # This handles variables like {{userId}}, {{ENV}}, {{COUNTRY}} that are not base URLs
+        # This handles only business logic variables like {{userId}}, {{cardId}}, etc.
         def replace_postman_var(match):
             var_name = match.group(1)
+            # Skip infrastructure variables that should have been removed
+            if var_name.upper() in ['ENV', 'ENVIRONMENT', 'COUNTRY', 'REGION', 'BASE_URL', 'BASEURL', 'API_URL', 'HOST']:
+                return ''  # Remove any remaining infrastructure variables
             return f"{{{var_name}}}"
         
         normalized = VARIABLE_PATTERN.sub(replace_postman_var, normalized)
