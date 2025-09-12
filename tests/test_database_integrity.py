@@ -77,10 +77,14 @@ def test_sqlite_integrity_and_foreign_keys():
         assert integrity_rows, "No rows returned from PRAGMA integrity_check; unexpected."\
         
         ok_rows = [r[0] for r in integrity_rows]
-        assert ok_rows == ["ok"], (
-            "SQLite integrity_check failed. First entries: "
-            f"{ok_rows[:5]} (full count={len(ok_rows)})."
-        )
+        if ok_rows != ["ok"]:
+            tables = list(con.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY 1;"))
+            table_list = ", ".join(r[0] for r in tables)
+            assert ok_rows == ["ok"], (
+                "SQLite integrity_check failed. First entries: "
+                f"{ok_rows[:5]} (full count={len(ok_rows)}). "
+                f"Tables present: {table_list}"
+            )
 
         fk_rows = list(con.execute("PRAGMA foreign_key_check;"))
         if fk_rows:

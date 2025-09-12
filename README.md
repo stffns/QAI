@@ -12,6 +12,27 @@ Desarrollado con [Agno 1.8.1](https://github.com/agnoai/agno) con arquitectura m
 - ✅ **Sistema de configuración centralizada** - YAML + configurador interactivo
 - ✅ **Herramientas integradas** - Python, Calculadora, Web Search
 - ✅ **Especialización QA** - Instrucciones y conocimiento enfocado en testing
+- ✅ **Database Health Check** - Test automático de integridad y claves foráneas (PRAGMA)
+
+### 🩺 Database Health
+
+![DB Health](https://img.shields.io/badge/DB%20Health-automated-green?style=flat-square)
+
+La integridad de la base SQLite principal (`data/qa_intelligence.db`) se valida en CI mediante:
+
+1. `PRAGMA integrity_check;` (debe devolver `ok`)
+2. `PRAGMA foreign_key_check;` (sin resultados)
+
+Archivo de prueba: `tests/test_database_integrity.py`.
+
+Variables de entorno soportadas:
+
+```bash
+QA_DB_PATH=/ruta/alternativa/qa_intelligence.db   # Usa una BD diferente
+QA_SKIP_DB_INTEGRITY=1                           # Omite el test (solo entornos especiales)
+```
+
+Objetivo: detectar corrupción temprana (índices dañados, FKs obsoletos) antes de desplegar.
 
 ## 🚀 Inicio Rápido
 
