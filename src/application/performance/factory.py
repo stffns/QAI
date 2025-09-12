@@ -74,8 +74,16 @@ def _start_database_syncer(store: InMemoryStatusStore, uow_factory):
         # Obtain optional configuration for sync interval / stuck threshold
         try:
             settings = get_settings()
-            sync_interval = getattr(settings.performance, "sync_interval", 5) if hasattr(settings, "performance") else 5
-            stuck_threshold = getattr(settings.performance, "stuck_threshold_minutes", 10) if hasattr(settings, "performance") else 10
+            sync_interval = (
+                getattr(settings.performance, "sync_interval", 5)
+                if hasattr(settings, "performance")
+                else 5
+            )
+            stuck_threshold = (
+                getattr(settings.performance, "stuck_threshold_minutes", 10)
+                if hasattr(settings, "performance")
+                else 10
+            )
         except Exception:
             sync_interval = 5
             stuck_threshold = 10

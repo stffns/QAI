@@ -7,9 +7,9 @@ Exports all configuration models from their respective modules
 from .core import (
     DatabaseConfig,
     ModelConfig,
+    PerformanceConfig,
     ToolConfig,
     ToolsConfig,
-    PerformanceConfig,
 )
 
 # Interface models

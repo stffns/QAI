@@ -835,11 +835,14 @@ class ToolsManager:
     def _load_postman_tool(self, tool_config: ToolConfig) -> Any:
         """Load Postman import tool."""
         try:
-            import os, sys
+            import os
+            import sys
+
             project_root = os.path.join(os.path.dirname(__file__), "..", "..")
             if project_root not in sys.path:
                 sys.path.append(project_root)
             from src.agent.tools.postman_tools import postman_import
+
             return postman_import
         except ImportError as e:
             raise ToolLoadError(f"Postman import tool not available: {e}")
