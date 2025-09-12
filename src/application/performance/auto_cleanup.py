@@ -90,7 +90,13 @@ class PerformanceAutoCleanup:
                     keep_recent = 1
 
             # Ensure keep_recent is an int
-            keep_recent = int(keep_recent) if keep_recent is not None else 1
+            try:
+                keep_recent = int(keep_recent) if keep_recent is not None else 1
+            except (ValueError, TypeError):
+                logger.warning(
+                    f"⚠️  Invalid value for 'keep_recent' in configuration: {keep_recent!r}. Using default value 1."
+                )
+                keep_recent = 1
 
             # Check if auto-cleanup is enabled
             try:
