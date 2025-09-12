@@ -58,7 +58,7 @@ def create_oauth_tables(conn: sqlite3.Connection):
         phone_number VARCHAR(20) NOT NULL 
             CHECK (phone_number LIKE '+%' AND length(phone_number) >= 8),
         gender VARCHAR(10) NOT NULL 
-            CHECK (gender IN ('male', 'female', 'Homme', 'Femeie')),
+            CHECK (gender IN ('male', 'female')),
         password_hash VARCHAR(255) NOT NULL,
         
         -- RELACIÓN CON ESQUEMA EXISTENTE - FK obligatoria
