@@ -10,7 +10,7 @@ Date: 2025-09-08
 """
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from enum import Enum
 
 from sqlmodel import SQLModel, Field, Relationship, Column, String, Integer, Boolean, DateTime
@@ -94,6 +94,9 @@ class Role(TimestampMixin, AuditMixin, table=True):
     - Prioridad para resolución de conflictos
     """
     
+    # Explicit table name for clarity / FK alignment
+    __tablename__ = "roles"  # type: ignore[assignment]
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=50, unique=True, index=True)
     description: Optional[str] = Field(default=None, max_length=255)
@@ -150,6 +153,8 @@ class Permission(TimestampMixin, AuditMixin, table=True):
     - Scopes para filtrado adicional
     """
     
+    __tablename__ = "permissions"  # type: ignore[assignment]
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100, unique=True, index=True)
     description: Optional[str] = Field(default=None, max_length=255)
@@ -186,80 +191,8 @@ class Permission(TimestampMixin, AuditMixin, table=True):
         return ":".join(parts)
 
 
-class User(TimestampMixin, AuditMixin, table=True):
-    """
-    Modelo de usuario mejorado sin campo role duplicado.
-    
-    Características:
-    - Solo relación many-to-many con roles
-    - Campos de seguridad y auditoría
-    - Estados del usuario
-    """
-    
-    id: Optional[int] = Field(default=None, primary_key=True)
-    username: str = Field(max_length=50, unique=True, index=True)
-    email: str = Field(max_length=100, unique=True, index=True)
-    full_name: Optional[str] = Field(default=None, max_length=100)
-    
-    # Seguridad
-    password_hash: str = Field(max_length=255)
-    status: UserStatus = Field(default=UserStatus.ACTIVE, index=True)
-    
-    # Control de acceso
-    failed_login_attempts: int = Field(default=0)
-    last_login_at: Optional[datetime] = Field(default=None)
-    locked_until: Optional[datetime] = Field(default=None)
-    password_changed_at: Optional[datetime] = Field(default=None)
-    
-    # Configuración
-    timezone: Optional[str] = Field(default="UTC", max_length=50)
-    language: Optional[str] = Field(default="es", max_length=10)
-    
-    # Relaciones
-    user_roles: List["UserRole"] = Relationship(back_populates="user")
-    user_permissions: List["UserPermission"] = Relationship(back_populates="user")
-    audit_logs: List["AuditLog"] = Relationship(back_populates="user")
-    
-    @validator('email')
-    def validate_email(cls, v):
-        if '@' not in v:
-            raise ValueError("Email inválido")
-        return v.lower()
-    
-    def get_effective_permissions(self) -> List[Permission]:
-        """Obtener todos los permisos efectivos del usuario."""
-        permissions = []
-        
-        # Permisos directos activos
-        for up in self.user_permissions:
-            if up.is_active and not up.is_revoked():
-                permissions.append(up.permission)
-        
-        # Permisos por roles
-        for ur in self.user_roles:
-            if ur.is_active:
-                permissions.extend(ur.role.get_effective_permissions())
-        
-        # Eliminar duplicados
-        return list(set(permissions))
-    
-    def has_permission(self, permission_name: str, resource_type: Optional[str] = None, 
-                       action: Optional[str] = None, scope: Optional[str] = None) -> bool:
-        """Verificar si el usuario tiene un permiso específico."""
-        effective_permissions = self.get_effective_permissions()
-        
-        for perm in effective_permissions:
-            if perm.name == permission_name:
-                # Verificar contexto si se especifica
-                if resource_type and perm.resource_type and perm.resource_type.value != resource_type:
-                    continue
-                if action and perm.action and perm.action.value != action:
-                    continue
-                if scope and perm.scope and perm.scope != scope:
-                    continue
-                return True
-        
-        return False
+if TYPE_CHECKING:
+    from .users import User  # type: ignore  # unified User model
 
 
 # =============================================================================
@@ -268,6 +201,8 @@ class User(TimestampMixin, AuditMixin, table=True):
 
 class UserRole(TimestampMixin, table=True):
     """Relación many-to-many entre usuarios y roles."""
+
+    __tablename__ = "user_roles"  # type: ignore[assignment]
     
     user_id: int = Field(foreign_key="users.id", primary_key=True)
     role_id: int = Field(foreign_key="roles.id", primary_key=True)
@@ -292,6 +227,8 @@ class RolePermission(TimestampMixin, table=True):
     Relación many-to-many entre roles y permisos.
     Esta es la tabla clave para RBAC completo.
     """
+
+    __tablename__ = "role_permissions"  # type: ignore[assignment]
     
     id: Optional[int] = Field(default=None, primary_key=True)
     role_id: int = Field(foreign_key="roles.id", index=True)
@@ -312,6 +249,8 @@ class UserPermission(TimestampMixin, table=True):
     Permisos directos de usuario (excepciones al RBAC).
     Solo para casos especiales donde se requiere permiso específico.
     """
+
+    __tablename__ = "user_permissions"  # type: ignore[assignment]
     
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
@@ -353,6 +292,8 @@ class AuditLog(TimestampMixin, table=True):
     """
     Log de auditoría para cambios en permisos y roles.
     """
+
+    __tablename__ = "audit_logs_rbac"  # type: ignore[assignment]
     
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: Optional[int] = Field(default=None, foreign_key="users.id")

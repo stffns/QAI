@@ -10,6 +10,7 @@ Modelo mejorado para aplicaciones con:
 from datetime import datetime, timezone, date
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import UniqueConstraint, Index
 from pydantic import field_validator, model_validator
 import re
 
@@ -17,6 +18,11 @@ if TYPE_CHECKING:
     from .countries import Countries
     from .app_environment_country_mappings import AppEnvironmentCountryMapping
     from .application_endpoints import ApplicationEndpoint
+else:  # Runtime safe import to ensure mapper sees dependent model
+    try:  # pragma: no cover
+        from .application_endpoints import ApplicationEndpoint  # noqa: F401
+    except Exception:  # pragma: no cover
+        ApplicationEndpoint = None  # type: ignore
 
 
 class Apps(SQLModel, table=True):
@@ -31,7 +37,12 @@ class Apps(SQLModel, table=True):
     - Auditoría y metadatos
     """
     
-    __tablename__ = 'apps_master'
+    __tablename__ = 'apps_master'  # type: ignore[assignment]
+    # DB-level constraints & indexes
+    __table_args__ = (
+        UniqueConstraint('app_code', name='uq_apps_master_app_code'),
+        Index('ix_apps_master_app_code', 'app_code'),
+    )
     
     # Primary key
     id: Optional[int] = Field(default=None, primary_key=True, description="Primary key")

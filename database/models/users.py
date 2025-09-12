@@ -5,23 +5,30 @@ Provides User, Role, and AuditLog models with security features
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-import json
 import re
 
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field, Relationship
 from pydantic import field_validator
 
 from ..base import BaseModel, register_timestamp_listeners
 
 
-class UserRole(str, Enum):
+class UserRoleEnum(str, Enum):
     ADMIN = "admin"
     ANALYST = "analyst"
     VIEWER = "viewer"
     OPERATOR = "operator"
+
+
+try:  # pragma: no cover
+    from .permissions_rbac import UserRole as UserRole  # relationship model
+    from .permissions_rbac import UserPermission as UserPermission  # relationship model
+    from .permissions_rbac import AuditLog as AuditLogRbac  # relationship model
+except Exception:  # pragma: no cover
+    UserRole = UserPermission = AuditLogRbac = None  # type: ignore
 
 
 class User(BaseModel, table=True):
@@ -29,7 +36,7 @@ class User(BaseModel, table=True):
     Modelo de usuario con campos de seguridad
     Incluye validación, auditoría y relaciones
     """
-    __tablename__ = "users"
+    __tablename__ = "users"  # type: ignore[assignment]
 
     # Primary key
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -64,9 +71,10 @@ class User(BaseModel, table=True):
         description="Full display name",
     )
 
-    role: UserRole = Field(
-        default=UserRole.VIEWER,
-        description="User role in the system",
+    # Simple coarse role (legacy) alongside RBAC roles system
+    role: UserRoleEnum = Field(
+        default=UserRoleEnum.VIEWER,
+        description="Coarse legacy role classification (RBAC handles fine-grained)",
     )
 
     # Security fields
@@ -97,6 +105,27 @@ class User(BaseModel, table=True):
         description="Account locked until this timestamp (UTC)",
     )
 
+    # ---- RBAC / extended security fields (merged from permissions_rbac.User) ----
+    status: Optional[str] = Field(
+        default="active",
+        description="User status (active, inactive, locked, suspended)",
+    )
+    password_changed_at: Optional[datetime] = Field(
+        default=None,
+        description="When password was last changed (UTC)",
+    )
+    timezone: Optional[str] = Field(default="UTC", max_length=50, description="Preferred timezone")
+    language: Optional[str] = Field(default="es", max_length=10, description="Preferred language code")
+
+    # RBAC relationships (defined if RBAC module loaded)
+    # Relaciones RBAC (solo si los modelos están disponibles)
+    if UserRole is not None:
+        user_roles: List["UserRole"] = Relationship(back_populates="user")  # type: ignore
+    if UserPermission is not None:
+        user_permissions: List["UserPermission"] = Relationship(back_populates="user")  # type: ignore
+    if AuditLogRbac is not None:
+        audit_logs: List["AuditLogRbac"] = Relationship(back_populates="user")  # type: ignore
+
     # -------- Métodos de estado (UTC-aware) --------
 
     def is_locked(self) -> bool:
@@ -126,6 +155,58 @@ class User(BaseModel, table=True):
         self.last_login = datetime.now(timezone.utc)
         self.failed_login_attempts = 0
         self.locked_until = None
+        # If previously locked, status may need reset
+        if self.status == "locked":
+            self.status = "active"
+
+    # -------- RBAC helper methods (optional if relationships present) --------
+    def get_effective_permissions(self):  # type: ignore[override]
+        """Aggregate direct + role-based permissions (if RBAC models loaded)."""
+        permissions = []
+        try:
+            # Direct permissions
+            for up in getattr(self, 'user_permissions', []) or []:  # type: ignore[attr-defined]
+                if getattr(up, 'is_active', False) and hasattr(up, 'is_revoked') and not up.is_revoked():
+                    permissions.append(up.permission)
+            # Role permissions
+            for ur in getattr(self, 'user_roles', []) or []:  # type: ignore[attr-defined]
+                if getattr(ur, 'is_active', False) and hasattr(ur, 'role'):
+                    role = ur.role
+                    if hasattr(role, 'get_effective_permissions'):
+                        permissions.extend(role.get_effective_permissions())  # type: ignore
+            # Deduplicate
+            seen = set()
+            unique = []
+            for p in permissions:
+                key = getattr(p, 'id', id(p))
+                if key not in seen:
+                    seen.add(key)
+                    unique.append(p)
+            return unique
+        except Exception:
+            return []
+
+    def has_permission(self, permission_name: str, resource_type: Optional[str] = None,
+                       action: Optional[str] = None, scope: Optional[str] = None) -> bool:
+        for perm in self.get_effective_permissions():
+            if getattr(perm, 'name', None) == permission_name:
+                if resource_type and getattr(perm, 'resource_type', None) and perm.resource_type.value != resource_type:
+                    continue
+                if action and getattr(perm, 'action', None) and perm.action.value != action:
+                    continue
+                if scope and getattr(perm, 'scope', None) and perm.scope != scope:
+                    continue
+                return True
+        return False
+
+    # Backwards compatibility alias (RBAC version used last_login_at)
+    @property
+    def last_login_at(self) -> Optional[datetime]:  # type: ignore[override]
+        return self.last_login
+
+    @last_login_at.setter
+    def last_login_at(self, value: Optional[datetime]):  # type: ignore[override]
+        self.last_login = value
 
     # -------- Validadores / Normalización --------
 
@@ -170,7 +251,7 @@ class AuditLog(BaseModel, table=True):
     Registro de auditoría para compliance
     Registra todas las acciones importantes del sistema
     """
-    __tablename__ = "audit_log"  # Corregido para coincidir con la migración
+    __tablename__ = "audit_log"  # Corregido para coincidir con la migración  # type: ignore[assignment]
 
     # Primary key
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -194,11 +275,12 @@ class AuditLog(BaseModel, table=True):
 
     # Helpers para JSON (útiles en SQLite; en Postgres usa JSON/JSONB)
     def set_old_values(self, data: dict) -> None:
-        self.old_values = json.dumps(data, ensure_ascii=False)
+        import json as _json
+        self.old_values = _json.dumps(data, ensure_ascii=False)
 
     def set_new_values(self, data: dict) -> None:
-        self.new_values = json.dumps(data, ensure_ascii=False)
-
+        import json as _json
+        self.new_values = _json.dumps(data, ensure_ascii=False)
 
 # Register timestamp listeners for automatic updated_at handling
 register_timestamp_listeners(User)

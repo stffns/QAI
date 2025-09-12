@@ -20,7 +20,7 @@ class PerformanceEndpointResults(SQLModel, table=True):
     Almacena métricas detalladas de performance por endpoint durante la ejecución
     de tests de carga. Incluye percentiles completos y campos de auditoría.
     """
-    __tablename__ = "performance_endpoint_results"
+    __tablename__ = "performance_endpoint_results"  # type: ignore[assignment]
     
     # Primary key
     id: Optional[int] = Field(default=None, primary_key=True, description="Primary key")
@@ -328,8 +328,6 @@ class PerformanceEndpointResults(SQLModel, table=True):
                 min_response_time=45.2,
                 requests_per_second=25.5,
                 max_rps=45.0,
-                concurrent_users=10,
-                test_duration_seconds=40.0,
                 created_by="system"
             ),
             cls(
@@ -349,8 +347,6 @@ class PerformanceEndpointResults(SQLModel, table=True):
                 min_response_time=89.3,
                 requests_per_second=12.5,
                 max_rps=22.0,
-                concurrent_users=10,
-                test_duration_seconds=40.0,
                 created_by="system"
             ),
             cls(
@@ -370,8 +366,6 @@ class PerformanceEndpointResults(SQLModel, table=True):
                 min_response_time=32.1,
                 requests_per_second=18.8,
                 max_rps=35.0,
-                concurrent_users=10,
-                test_duration_seconds=40.0,
                 created_by="system"
             )
         ]

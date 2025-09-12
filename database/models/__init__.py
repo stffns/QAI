@@ -1,56 +1,49 @@
+"""database.models
+Declarative exports for core SQLModel entities used by QA Intelligence.
+
+Cleaning goals:
+- Remove large commented blocks that created noise in diffs.
+- Export only models that are actually safe to import at app start.
+- Keep optional OAuth models behind a best‑effort import so missing tables
+  or partial environments don't break startup.
+- Provide a minimal MODEL_REGISTRY used by migration/introspection utilities.
 """
-QA Intelligence Database Models
-SQLModel implementations with type safety and validation
 
-SOLO MODELOS RAG ACTIVOS - Otros modelos comentados para evitar conflictos
-"""
+from ..base import BaseModel  # Base mixin used across most models
+from .users import User, AuditLog, UserRole  # Core user & audit trail
 
-# === MODELOS RAG ÚNICAMENTE ===
-from ..base import BaseModel
-#     RAGDocument, RAGCollection, RAGEmbedding, RAGModel, RAGAnalytics,
-#     DocumentType, EmbeddingStatus
-# )
-# 
-# NOTA: RAG Manager usa modelos internos independientes para evitar dependencias circulares
-# Para usar RAG, importar directamente: from database.repositories.rag_manager import RAGManagerFactory
+# Optional / modular models -------------------------------------------------
+_oauth_models_loaded = False
+try:  # OAuth models are optional and depend on recent migrations
+    from .oauth import (
+        OAuthUsers,
+        OAuthJWKs,
+        OAuthAppClients,
+    )
+    _oauth_models_loaded = True
+except Exception:  # pragma: no cover - absence is acceptable
+    # Silent: missing OAuth models should not block the rest of the system.
+    pass
 
-# === MODELOS BÁSICOS NECESARIOS ===
-from .users import User, AuditLog, UserRole
-
-# === MODELOS COMENTADOS TEMPORALMENTE ===
-# from .applications import Application, Country, Environment  
-# from .testing import TestRun, PerformanceResult, TestType
-
-# Database Query Tool Models - COMENTADOS para evitar conflictos
-# from .apps import Apps
-# from .countries import Countries
-# from .app_environment_country_mappings import AppEnvironmentCountryMapping
-# from .application_endpoints import ApplicationEndpoint
-
-# Performance and SLA Models - COMENTADOS temporalmente
-# from .performance_slas import PerformanceSLAs
-# from .sla_violations import SlaViolations, ViolationType, ExecutionStatus, RiskLevel
-
-# Export SOLO modelos RAG + User básico
+# Public exports ------------------------------------------------------------
 __all__ = [
-    # Usuarios y autenticación
-    "User", "AuditLog", "UserRole",
-    
-    # RAG - usar RAGManagerFactory en lugar de modelos directos
-    # "RAGDocument", "RAGCollection", "RAGEmbedding", "RAGModel", "RAGAnalytics",
-    # "DocumentType", "EmbeddingStatus",
-    
-    # Base
     "BaseModel",
+    # Core
+    "User",
+    "AuditLog",
+    "UserRole",
 ]
 
-# Model registry para migrations - SOLO RAG
-MODEL_REGISTRY = [
-    "RAGDocument",
-    "RAGCollection", 
-    "RAGEmbedding",
-    "RAGModel",
-    "RAGAnalytics",
-    "User",
-    "AuditLog"
-]
+if _oauth_models_loaded:
+    __all__.extend([
+        "OAuthUsers",
+        "OAuthJWKs",
+        "OAuthAppClients",
+    ])
+
+# MODEL_REGISTRY kept intentionally small; tooling that needs discovery of
+# optional families (RAG, Performance, etc.) should load them explicitly to
+# avoid circular imports and startup cost.
+MODEL_REGISTRY = ["User", "AuditLog"]
+if _oauth_models_loaded:
+    MODEL_REGISTRY.extend(["OAuthUsers", "OAuthJWKs", "OAuthAppClients"])

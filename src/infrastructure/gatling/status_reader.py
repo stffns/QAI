@@ -8,9 +8,14 @@ from typing import Dict
 try:
     from src.application.performance.dto import RunStatus, SimulationParams
 except ImportError:  # pragma: no cover - fallback for direct runs
-    import sys, os
+    import os
+    import sys
+
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-    from src.application.performance.dto import RunStatus, SimulationParams  # type: ignore
+    from src.application.performance.dto import (  # type: ignore
+        RunStatus,
+        SimulationParams,
+    )
 
 
 class InMemoryStatusStore:
@@ -18,7 +23,9 @@ class InMemoryStatusStore:
         self._status: Dict[str, RunStatus] = {}
 
     def mark_queued(self, execution_id: str, params: SimulationParams) -> None:
-        self._status[execution_id] = RunStatus(execution_id=execution_id, status="queued")
+        self._status[execution_id] = RunStatus(
+            execution_id=execution_id, status="queued"
+        )
 
     def set_status(self, execution_id: str, status: str) -> None:
         rs = self._status.get(execution_id)
@@ -37,4 +44,9 @@ class GatlingStatusReader:
         self.store = store
 
     def get_status(self, execution_id: str) -> RunStatus:
-        return self.store._status.get(execution_id, RunStatus(execution_id=execution_id, status="failed", summary="unknown execution"))
+        return self.store._status.get(
+            execution_id,
+            RunStatus(
+                execution_id=execution_id, status="failed", summary="unknown execution"
+            ),
+        )

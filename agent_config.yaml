@@ -115,6 +115,12 @@ tools:
     name: perf_run_test
   - enabled: true
     name: perf_get_metrics
+  - enabled: true
+    name: oauth_generate_token
+  - enabled: true
+    name: oauth_list_configurations
+  - enabled: true
+    name: oauth_validate_setup
 reasoning:
   enabled: true
   type: agent
@@ -159,3 +165,10 @@ websocket:
   markdown: true
   stream: true
   brief_responses: true
+
+performance:
+  auto_cleanup:
+    enabled: true
+    keep_recent: 1
+    archive_retention_days: 7
+    cleanup_gatling_reports: true

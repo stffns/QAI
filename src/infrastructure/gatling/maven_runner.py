@@ -6,12 +6,12 @@ Maps SimulationParams/config to the example.UniversalSimulation system propertie
 Supports a lightweight echo mode for smoke testing with GATLING_MAVEN_ECHO=1.
 """
 
-import os
 import json
-import time
+import os
 import shlex
 import subprocess
 import threading
+import time
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -19,14 +19,23 @@ from urllib.parse import urlparse
 
 try:
     from src.application.performance.dto import SimulationParams
+    from src.infrastructure.gatling.results_parser import (
+        create_enhanced_summary,
+        parse_gatling_results,
+    )
     from src.infrastructure.gatling.status_reader import InMemoryStatusStore
-    from src.infrastructure.gatling.results_parser import parse_gatling_results, create_enhanced_summary
 except ImportError:  # pragma: no cover
     import sys
+
     sys.path.append(str(Path(__file__).resolve().parents[2]))
     from src.application.performance.dto import SimulationParams  # type: ignore
-    from src.infrastructure.gatling.status_reader import InMemoryStatusStore  # type: ignore
-    from src.infrastructure.gatling.results_parser import parse_gatling_results, create_enhanced_summary  # type: ignore
+    from src.infrastructure.gatling.results_parser import (  # type: ignore
+        create_enhanced_summary,
+        parse_gatling_results,
+    )
+    from src.infrastructure.gatling.status_reader import (
+        InMemoryStatusStore,  # type: ignore
+    )
 
 
 RUNS_BASE = Path("data/perf_runs")
@@ -34,7 +43,9 @@ GATLING_PROJECT_DIR = Path("tools/gatling")
 
 
 class MavenGatlingRunner:
-    def __init__(self, status_store: InMemoryStatusStore, env: Optional[dict[str, str]] = None):
+    def __init__(
+        self, status_store: InMemoryStatusStore, env: Optional[dict[str, str]] = None
+    ):
         self.status_store = status_store
         self.env = {**os.environ, **(env or {})}
         self._metrics = None  # lazy-init prometheus metrics
@@ -45,9 +56,22 @@ class MavenGatlingRunner:
             return
         try:  # pragma: no cover
             from prometheus_client import Counter, Histogram
-            started = Counter("qa_perf_runs_started_total", "Runs started by runner", labelnames=("runner",))
-            finished = Counter("qa_perf_runs_finished_total", "Runs finished by status", labelnames=("runner", "status"))
-            duration = Histogram("qa_perf_run_duration_seconds", "Run duration seconds", labelnames=("runner",))
+
+            started = Counter(
+                "qa_perf_runs_started_total",
+                "Runs started by runner",
+                labelnames=("runner",),
+            )
+            finished = Counter(
+                "qa_perf_runs_finished_total",
+                "Runs finished by status",
+                labelnames=("runner", "status"),
+            )
+            duration = Histogram(
+                "qa_perf_run_duration_seconds",
+                "Run duration seconds",
+                labelnames=("runner",),
+            )
             self._metrics = (started, finished, duration)
         except Exception:
             self._metrics = ()
@@ -63,27 +87,45 @@ class MavenGatlingRunner:
                 ep = getattr(sp, "endpoint_slug", None) or ""
                 if ep.startswith("http"):
                     parsed_ep = urlparse(ep)
-                    path = parsed_ep.path + (f"?{parsed_ep.query}" if parsed_ep.query else "")
+                    path = parsed_ep.path + (
+                        f"?{parsed_ep.query}" if parsed_ep.query else ""
+                    )
                 else:
                     path = ep if ep.startswith("/") else f"/{ep}"
                 if path:
                     endpoints_chain.append(path)
 
         parsed = urlparse(endpoint_url) if endpoint_url.startswith("http") else None
-        base_url = f"{parsed.scheme}://{parsed.netloc}" if parsed else self.env.get("GATLING_BASEURL", "http://localhost")
-        endpoint_path = (parsed.path + (f"?{parsed.query}" if parsed and parsed.query else "")) if parsed else "/"
+        base_url = (
+            f"{parsed.scheme}://{parsed.netloc}"
+            if parsed
+            else self.env.get("GATLING_BASEURL", "http://localhost")
+        )
+        endpoint_path = (
+            (parsed.path + (f"?{parsed.query}" if parsed and parsed.query else ""))
+            if parsed
+            else "/"
+        )
 
         vu = max(1, int(getattr(params, "users", 1)))
         duration = max(1, int(getattr(params, "duration_sec", 60)))
         rps = 0.0
-        if params.scenarios and len(params.scenarios) > 0 and getattr(params.scenarios[0], "rps_target", None):
+        if (
+            params.scenarios
+            and len(params.scenarios) > 0
+            and getattr(params.scenarios[0], "rps_target", None)
+        ):
             rps = float(params.scenarios[0].rps_target)  # type: ignore[arg-type]
         elif getattr(params, "rps_target", None):
             rps = float(params.rps_target)  # type: ignore[arg-type]
 
         feeder_type = "none"
         feeder_file = None
-        if params.scenarios and len(params.scenarios) > 0 and getattr(params.scenarios[0], "feeder_file", None):
+        if (
+            params.scenarios
+            and len(params.scenarios) > 0
+            and getattr(params.scenarios[0], "feeder_file", None)
+        ):
             feeder_type = "csv"
             feeder_file = params.scenarios[0].feeder_file
         elif getattr(params, "feeder_file", None):
@@ -191,7 +233,13 @@ class MavenGatlingRunner:
             except Exception:
                 pass
             with log_path.open("w", encoding="utf-8") as logf:
-                proc = subprocess.Popen(cmd, cwd=str(cwd), env=self.env, stdout=logf, stderr=subprocess.STDOUT)
+                proc = subprocess.Popen(
+                    cmd,
+                    cwd=str(cwd),
+                    env=self.env,
+                    stdout=logf,
+                    stderr=subprocess.STDOUT,
+                )
                 rc = proc.wait()
             # Try to parse and persist a summary for downstream consumers
             try:
@@ -212,22 +260,30 @@ class MavenGatlingRunner:
                         if latest_dir is not None:
                             # Use enhanced summary for better data extraction
                             enhanced_summary = create_enhanced_summary(latest_dir)
-                            parsed_summary = parse_gatling_results(latest_dir)  # Keep for backward compatibility
+                            parsed_summary = parse_gatling_results(
+                                latest_dir
+                            )  # Keep for backward compatibility
                             # Also write a small pointer for convenience
                             (log_dir / "report_path.txt").write_text(str(latest_dir))
                     except Exception:
                         parsed_summary = None
                         enhanced_summary = None
-                
+
                 # Fallback to our run results dir (rarely used for Maven) or when parsing failed
                 if not enhanced_summary or not enhanced_summary.get("parsed"):
                     if not parsed_summary or not parsed_summary.get("parsed"):
                         parsed_summary = parse_gatling_results(log_dir)
                     enhanced_summary = create_enhanced_summary(log_dir)
-                
+
                 # Write enhanced summary (with fallback to basic summary if enhanced fails)
-                summary_to_write = enhanced_summary if enhanced_summary and enhanced_summary.get("parsed") else parsed_summary
-                (log_dir / "summary.json").write_text(json.dumps(summary_to_write, indent=2))
+                summary_to_write = (
+                    enhanced_summary
+                    if enhanced_summary and enhanced_summary.get("parsed")
+                    else parsed_summary
+                )
+                (log_dir / "summary.json").write_text(
+                    json.dumps(summary_to_write, indent=2)
+                )
             except Exception:
                 pass
             if rc == 0:
@@ -273,6 +329,10 @@ class MavenGatlingRunner:
             self.status_store.set_status(execution_id, "failed")
             return execution_id
 
-        t = threading.Thread(target=self._run_process, args=(execution_id, cmd, GATLING_PROJECT_DIR), daemon=True)
+        t = threading.Thread(
+            target=self._run_process,
+            args=(execution_id, cmd, GATLING_PROJECT_DIR),
+            daemon=True,
+        )
         t.start()
         return execution_id

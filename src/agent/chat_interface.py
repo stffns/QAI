@@ -4,7 +4,7 @@ Chat Interface - Manages user interface and conversation loop with streaming sup
 
 import sys
 import time
-from typing import Iterator, Any
+from typing import Any, Iterator
 
 
 # SRP: This class has a single responsibility - managing user interaction.
@@ -22,18 +22,21 @@ class ChatInterface:
         """Get streaming configuration from config"""
         try:
             interface_config = self.config.get_interface_config()
-            return interface_config.get("terminal", {}).get("streaming", {
-                "enabled": True,
-                "show_cursor": True,
-                "cursor_style": "⚡",
-                "typing_delay": 0.02
-            })
+            return interface_config.get("terminal", {}).get(
+                "streaming",
+                {
+                    "enabled": True,
+                    "show_cursor": True,
+                    "cursor_style": "⚡",
+                    "typing_delay": 0.02,
+                },
+            )
         except:
             return {
                 "enabled": True,
-                "show_cursor": True, 
+                "show_cursor": True,
                 "cursor_style": "⚡",
-                "typing_delay": 0.02
+                "typing_delay": 0.02,
             }
 
     def start_chat(self):
@@ -101,52 +104,61 @@ class ChatInterface:
     def _get_agent_response(self, user_input):
         """Get and display agent response with streaming support"""
         print("\n🤖 Agent:", end=" ")
-        
+
         # Check if streaming is enabled in configuration
         model_config = self.config.get_model_config()
         stream_enabled = model_config.get("stream", False)
-        
+
         try:
             response = self.agent.run(user_input)
-            
+
             # Handle streaming response
-            if stream_enabled and hasattr(response, '__iter__') and not hasattr(response, 'content'):
+            if (
+                stream_enabled
+                and hasattr(response, "__iter__")
+                and not hasattr(response, "content")
+            ):
                 # Response is a generator (streaming mode)
                 for chunk in response:
-                    if hasattr(chunk, 'content') and chunk.content:
+                    if hasattr(chunk, "content") and chunk.content:
                         self._print_chunk(chunk.content)
                     elif isinstance(chunk, str):
                         self._print_chunk(chunk)
-                    elif hasattr(chunk, 'delta') and hasattr(chunk.delta, 'content') and chunk.delta.content:
+                    elif (
+                        hasattr(chunk, "delta")
+                        and hasattr(chunk.delta, "content")
+                        and chunk.delta.content
+                    ):
                         self._print_chunk(chunk.delta.content)
                 print()  # Final newline
             else:
                 # Regular response object or non-streaming
-                if hasattr(response, 'content'):
+                if hasattr(response, "content"):
                     if self._streaming_enabled.get("enabled", False):
                         self._simulate_typing(response.content)
                     else:
                         print(response.content)
                 else:
                     print(str(response))
-                    
+
         except Exception as e:
             print(f"Error getting response: {e}")
             import traceback
+
             traceback.print_exc()
 
     def _display_streaming_response(self, user_input):
         """Display real streaming response from agent"""
         try:
             for chunk in self.agent.stream(user_input):
-                if hasattr(chunk, 'content') and chunk.content:
+                if hasattr(chunk, "content") and chunk.content:
                     self._print_chunk(chunk.content)
                 elif isinstance(chunk, str):
                     self._print_chunk(chunk)
             print()  # Final newline
         except Exception as e:
             print(f"\nStreaming error: {e}")
-            
+
     def _display_streaming_response_fallback(self, user_input):
         """Fallback streaming using model directly"""
         try:
@@ -173,7 +185,7 @@ class ChatInterface:
     def _simulate_typing(self, text: str):
         """Simulate typing effect for non-streaming responses"""
         typing_delay = self._streaming_enabled.get("typing_delay", 0.02)
-        
+
         for char in text:
             print(char, end="", flush=True)
             if typing_delay > 0:

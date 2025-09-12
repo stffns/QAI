@@ -4,61 +4,89 @@ Database Tools for QA Intelligence Agent
 This module provides database query tools using both raw functions and Agno @tool decorators.
 Raw functions can be called directly, while @tool decorated versions are for the Agno agent.
 """
+
 import json
 from typing import Optional
+
 from agno.tools import tool
 from sqlmodel import Session, select
 
 # Import our database validator functions
 try:
-    from .database_validator import (
-        get_database_stats,
-        get_all_apps,
-        get_all_countries,
-        get_all_mappings,
-    get_all_environments,
-    search_database,
-    get_app_countries as _validator_get_app_countries,
-    get_country_apps as _validator_get_country_apps,
+    # Direct DB access for full mapping details
+    from database.connection import db_manager
+    from database.models.app_environment_country_mappings import (
+        AppEnvironmentCountryMapping,
     )
+
     # Ensure ApplicationEndpoint model is registered with SQLAlchemy before queries run
     # to avoid mapper relationship resolution errors during tool execution.
     from database.models.application_endpoints import ApplicationEndpoint  # noqa: F401
+    from database.models.apps import Apps
+    from database.models.countries import Countries
     from database.models.environments import Environments  # noqa: F401
+    from database.models.environments import Environments as EnvModel
+    from database.models.performance_endpoint_results import PerformanceEndpointResults
+    from database.models.performance_test_executions import (
+        ExecutionStatus as ExecStatus,
+    )
+    from database.models.performance_test_executions import (
+        PerformanceTestExecution,
+    )
+
     # Reuse PerformanceService for endpoint discovery to avoid duplicating repo logic
     from src.application.performance.factory import build_default_service
-    # Direct DB access for full mapping details
-    from database.connection import db_manager
-    from database.models.app_environment_country_mappings import AppEnvironmentCountryMapping
-    from database.models.apps import Apps
-    from database.models.countries import Countries
-    from database.models.environments import Environments as EnvModel
-    from database.models.performance_test_executions import PerformanceTestExecution, ExecutionStatus as ExecStatus
-    from database.models.performance_endpoint_results import PerformanceEndpointResults
-except ImportError:
-    import sys
-    import os
-    sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-    from src.agent.tools.database_validator import (
-        get_database_stats,
+
+    from .database_validator import (
         get_all_apps,
         get_all_countries,
+        get_all_environments,
         get_all_mappings,
-    get_all_environments,
-    search_database,
-    get_app_countries as _validator_get_app_countries,
-    get_country_apps as _validator_get_country_apps,
+    )
+    from .database_validator import get_app_countries as _validator_get_app_countries
+    from .database_validator import get_country_apps as _validator_get_country_apps
+    from .database_validator import (
+        get_database_stats,
+        search_database,
+    )
+except ImportError:
+    import os
+    import sys
+
+    sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    from database.connection import db_manager
+    from database.models.app_environment_country_mappings import (
+        AppEnvironmentCountryMapping,
     )
     from database.models.application_endpoints import ApplicationEndpoint  # noqa: F401
-    from database.models.environments import Environments  # noqa: F401
-    from src.application.performance.factory import build_default_service
-    from database.connection import db_manager
-    from database.models.app_environment_country_mappings import AppEnvironmentCountryMapping
     from database.models.apps import Apps
     from database.models.countries import Countries
+    from database.models.environments import Environments  # noqa: F401
     from database.models.environments import Environments as EnvModel
-    from database.models.performance_test_executions import PerformanceTestExecution, ExecutionStatus as ExecStatus
     from database.models.performance_endpoint_results import PerformanceEndpointResults
+    from database.models.performance_test_executions import (
+        ExecutionStatus as ExecStatus,
+    )
+    from database.models.performance_test_executions import (
+        PerformanceTestExecution,
+    )
+    from src.agent.tools.database_validator import (
+        get_all_apps,
+        get_all_countries,
+        get_all_environments,
+        get_all_mappings,
+    )
+    from src.agent.tools.database_validator import (
+        get_app_countries as _validator_get_app_countries,
+    )
+    from src.agent.tools.database_validator import (
+        get_country_apps as _validator_get_country_apps,
+    )
+    from src.agent.tools.database_validator import (
+        get_database_stats,
+        search_database,
+    )
+    from src.application.performance.factory import build_default_service
 
 
 # Raw functions for direct calling (these are just aliases to the originals)
@@ -66,21 +94,26 @@ def database_stats_raw() -> str:
     """Get database statistics - raw function for direct calling"""
     return get_database_stats()
 
+
 def list_apps_raw() -> str:
     """List all apps - raw function for direct calling"""
     return get_all_apps()
+
 
 def list_countries_raw() -> str:
     """List all countries - raw function for direct calling"""
     return get_all_countries()
 
+
 def list_mappings_raw() -> str:
     """List all mappings - raw function for direct calling"""
     return get_all_mappings()
 
+
 def list_environments_raw() -> str:
     """List all environments - raw function for direct calling"""
     return get_all_environments()
+
 
 def search_qa_data_raw(search_term: str, search_type: str = "all") -> str:
     """Search QA data - raw function for direct calling"""
@@ -91,18 +124,18 @@ def search_qa_data_raw(search_term: str, search_type: str = "all") -> str:
 @tool(
     name="get_qa_database_stats",
     description="Get comprehensive statistics about the QA Intelligence database including counts of apps, countries, and mappings",
-    show_result=False
+    show_result=False,
 )
 def database_stats() -> str:
     """
     Get comprehensive statistics about the QA Intelligence database.
-    
+
     Returns information about:
     - Total apps (active/inactive)
-    - Total countries (active/inactive)  
+    - Total countries (active/inactive)
     - Total mappings (active/inactive/recent deployments/deprecated)
     - Average countries per app and apps per country
-    
+
     Returns:
         str: JSON string with database statistics
     """
@@ -112,18 +145,18 @@ def database_stats() -> str:
 @tool(
     name="get_qa_apps",
     description="Get all applications from the QA Intelligence database with their details",
-    show_result=False
+    show_result=False,
 )
 def list_apps() -> str:
     """
     Get all applications from the QA Intelligence database.
-    
+
     Returns information about each app including:
     - App code and name
     - Active status
     - Creation date
     - Number of countries where it's deployed
-    
+
     Returns:
         str: JSON string with all apps information
     """
@@ -131,21 +164,21 @@ def list_apps() -> str:
 
 
 @tool(
-    name="get_qa_countries", 
+    name="get_qa_countries",
     description="Get all countries from the QA Intelligence database with their details",
-    show_result=False
+    show_result=False,
 )
 def list_countries() -> str:
     """
     Get all countries from the QA Intelligence database.
-    
+
     Returns information about each country including:
     - Country code and name
     - Region and timezone
     - Currency code
     - Active status
     - Number of apps deployed there
-    
+
     Returns:
         str: JSON string with all countries information
     """
@@ -155,32 +188,33 @@ def list_countries() -> str:
 @tool(
     name="get_qa_mappings",
     description="Get all app-country mappings showing which apps are deployed in which countries",
-    show_result=False
+    show_result=False,
 )
 def list_mappings() -> str:
     """
     Get all application-country mappings from the QA Intelligence database.
-    
+
     Returns information about each mapping including:
     - App code/name and country code/name
     - Active status and current deployment status
     - Launch and deprecation dates
     - Deployment duration in days
-    
+
     Returns:
         str: JSON string with all mappings information
     """
     return get_all_mappings()
 
+
 @tool(
     name="get_qa_environments",
     description="Get all environments from the QA Intelligence database (e.g., STA, UAT, PRD)",
-    show_result=False
+    show_result=False,
 )
 def list_environments() -> str:
     """
     Get all environments from the QA Intelligence database.
-    
+
     Returns:
         str: JSON string with all environments information
     """
@@ -190,16 +224,16 @@ def list_environments() -> str:
 @tool(
     name="search_qa_database",
     description="Search for apps, countries, or mappings in the QA Intelligence database by code or name",
-    show_result=False
+    show_result=False,
 )
 def search_qa_data(search_term: str, search_type: str = "all") -> str:
     """
     Search for apps, countries, or mappings in the QA Intelligence database.
-    
+
     Args:
         search_term: The term to search for (app code, country code, or name)
         search_type: Type of search - "apps", "countries", "mappings", or "all" (default: "all")
-    
+
     Returns:
         str: JSON string with search results
     """
@@ -208,17 +242,20 @@ def search_qa_data(search_term: str, search_type: str = "all") -> str:
 
 # --- Performance Executions: DB exposure ---
 
+
 def _exec_to_dict(ex: PerformanceTestExecution) -> dict:
     def iso(dt):
         try:
             return dt.isoformat() if dt else None
         except Exception:
             return None
+
     def enum_name(v):
         try:
             return v.name if hasattr(v, "name") else (str(v) if v is not None else None)
         except Exception:
             return str(v) if v is not None else None
+
     return {
         "id": getattr(ex, "id", None),
         "execution_id": getattr(ex, "execution_id", None),
@@ -248,7 +285,9 @@ def _exec_to_dict(ex: PerformanceTestExecution) -> dict:
     }
 
 
-def list_perf_executions_raw(status: Optional[str] = None, environment: Optional[str] = None, limit: int = 20) -> str:
+def list_perf_executions_raw(
+    status: Optional[str] = None, environment: Optional[str] = None, limit: int = 20
+) -> str:
     """Raw: list recent performance executions with optional filters."""
     try:
         engine = db_manager.engine
@@ -259,20 +298,29 @@ def list_perf_executions_raw(status: Optional[str] = None, environment: Optional
                     enum_status = ExecStatus[status.upper()]
                     stmt = stmt.where(PerformanceTestExecution.status == enum_status)
                 except Exception:
-                    return json.dumps({"status": "error", "message": f"Invalid status: {status}"})
+                    return json.dumps(
+                        {"status": "error", "message": f"Invalid status: {status}"}
+                    )
             if environment:
-                stmt = stmt.where(PerformanceTestExecution.execution_environment == environment)
+                stmt = stmt.where(
+                    PerformanceTestExecution.execution_environment == environment
+                )
             # Order by created_at desc when available
             try:
                 from sqlmodel import desc
+
                 stmt = stmt.order_by(desc(PerformanceTestExecution.created_at))
             except Exception:
                 pass
             rows = session.exec(stmt).all()
             data = [_exec_to_dict(ex) for ex in rows[: max(1, int(limit))]]
-            return json.dumps({"status": "success", "count": len(data), "executions": data})
+            return json.dumps(
+                {"status": "success", "count": len(data), "executions": data}
+            )
     except Exception as e:
-        return json.dumps({"status": "error", "message": f"Failed to list executions: {str(e)}"})
+        return json.dumps(
+            {"status": "error", "message": f"Failed to list executions: {str(e)}"}
+        )
 
 
 def get_perf_execution_raw(execution_id: str) -> str:
@@ -280,13 +328,21 @@ def get_perf_execution_raw(execution_id: str) -> str:
     try:
         engine = db_manager.engine
         with Session(engine) as session:
-            stmt = select(PerformanceTestExecution).where(PerformanceTestExecution.execution_id == execution_id)
+            stmt = select(PerformanceTestExecution).where(
+                PerformanceTestExecution.execution_id == execution_id
+            )
             ex = session.exec(stmt).first()
             if not ex:
-                return json.dumps({"status": "success", "found": False, "execution": None})
-            return json.dumps({"status": "success", "found": True, "execution": _exec_to_dict(ex)})
+                return json.dumps(
+                    {"status": "success", "found": False, "execution": None}
+                )
+            return json.dumps(
+                {"status": "success", "found": True, "execution": _exec_to_dict(ex)}
+            )
     except Exception as e:
-        return json.dumps({"status": "error", "message": f"Failed to get execution: {str(e)}"})
+        return json.dumps(
+            {"status": "error", "message": f"Failed to get execution: {str(e)}"}
+        )
 
 
 def get_perf_endpoint_results_raw(execution_id: str) -> str:
@@ -294,8 +350,11 @@ def get_perf_endpoint_results_raw(execution_id: str) -> str:
     try:
         engine = db_manager.engine
         with Session(engine) as session:
-            stmt = select(PerformanceEndpointResults).where(PerformanceEndpointResults.execution_id == execution_id)
+            stmt = select(PerformanceEndpointResults).where(
+                PerformanceEndpointResults.execution_id == execution_id
+            )
             rows = session.exec(stmt).all()
+
             def dto(r: PerformanceEndpointResults) -> dict:
                 return {
                     "id": r.id,
@@ -320,10 +379,15 @@ def get_perf_endpoint_results_raw(execution_id: str) -> str:
                     "created_at": r.created_at.isoformat() if r.created_at else None,
                     "updated_at": r.updated_at.isoformat() if r.updated_at else None,
                 }
+
             data = [dto(r) for r in rows]
-            return json.dumps({"status": "success", "count": len(data), "endpoints": data})
+            return json.dumps(
+                {"status": "success", "count": len(data), "endpoints": data}
+            )
     except Exception as e:
-        return json.dumps({"status": "error", "message": f"Failed to get endpoint results: {str(e)}"})
+        return json.dumps(
+            {"status": "error", "message": f"Failed to get endpoint results: {str(e)}"}
+        )
 
 
 @tool(
@@ -331,9 +395,13 @@ def get_perf_endpoint_results_raw(execution_id: str) -> str:
     description="List performance test executions with optional filters: status (PENDING/RUNNING/COMPLETED/FAILED), environment, limit",
     show_result=False,
 )
-def get_perf_executions(status: Optional[str] = None, environment: Optional[str] = None, limit: int = 20) -> str:
+def get_perf_executions(
+    status: Optional[str] = None, environment: Optional[str] = None, limit: int = 20
+) -> str:
     try:
-        return list_perf_executions_raw(status=status, environment=environment, limit=limit)
+        return list_perf_executions_raw(
+            status=status, environment=environment, limit=limit
+        )
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 
@@ -367,7 +435,11 @@ def get_perf_endpoint_results(execution_id: str) -> str:
     description="Get App-Environment-Country mappings with all model fields. Optional filters by app_code, env_code, country_code.",
     show_result=False,
 )
-def list_mappings_full(app_code: Optional[str] = None, env_code: Optional[str] = None, country_code: Optional[str] = None) -> str:
+def list_mappings_full(
+    app_code: Optional[str] = None,
+    env_code: Optional[str] = None,
+    country_code: Optional[str] = None,
+) -> str:
     """Return detailed mapping records exposing all AppEnvironmentCountryMapping fields.
 
     Args:
@@ -379,17 +451,29 @@ def list_mappings_full(app_code: Optional[str] = None, env_code: Optional[str] =
         JSON string containing a list of mappings with full fields.
     """
     try:
-        return _list_mappings_full_impl(app_code=app_code, env_code=env_code, country_code=country_code)
+        return _list_mappings_full_impl(
+            app_code=app_code, env_code=env_code, country_code=country_code
+        )
     except Exception as e:
-        return json.dumps({"status": "error", "message": f"Failed to fetch mappings: {str(e)}"})
+        return json.dumps(
+            {"status": "error", "message": f"Failed to fetch mappings: {str(e)}"}
+        )
 
 
-def list_mappings_full_raw(app_code: Optional[str] = None, env_code: Optional[str] = None, country_code: Optional[str] = None) -> str:
+def list_mappings_full_raw(
+    app_code: Optional[str] = None,
+    env_code: Optional[str] = None,
+    country_code: Optional[str] = None,
+) -> str:
     """Raw function variant of get_qa_mappings_full for direct imports/tests."""
-    return _list_mappings_full_impl(app_code=app_code, env_code=env_code, country_code=country_code)
+    return _list_mappings_full_impl(
+        app_code=app_code, env_code=env_code, country_code=country_code
+    )
 
 
-def _list_mappings_full_impl(app_code: Optional[str], env_code: Optional[str], country_code: Optional[str]) -> str:
+def _list_mappings_full_impl(
+    app_code: Optional[str], env_code: Optional[str], country_code: Optional[str]
+) -> str:
     engine = db_manager.engine
     with Session(engine) as session:
         # Resolve codes to IDs when provided
@@ -397,15 +481,21 @@ def _list_mappings_full_impl(app_code: Optional[str], env_code: Optional[str], c
         env_id = None
         ctry_id = None
         if app_code:
-            app_id = session.exec(select(Apps.id).where(Apps.app_code == app_code)).first()
+            app_id = session.exec(
+                select(Apps.id).where(Apps.app_code == app_code)
+            ).first()
             if app_id is None:
                 return json.dumps({"status": "success", "count": 0, "mappings": []})
         if env_code:
-            env_id = session.exec(select(EnvModel.id).where(EnvModel.env_code == env_code)).first()
+            env_id = session.exec(
+                select(EnvModel.id).where(EnvModel.env_code == env_code)
+            ).first()
             if env_id is None:
                 return json.dumps({"status": "success", "count": 0, "mappings": []})
         if country_code:
-            ctry_id = session.exec(select(Countries.id).where(Countries.country_code == country_code)).first()
+            ctry_id = session.exec(
+                select(Countries.id).where(Countries.country_code == country_code)
+            ).first()
             if ctry_id is None:
                 return json.dumps({"status": "success", "count": 0, "mappings": []})
 
@@ -441,10 +531,18 @@ def _list_mappings_full_impl(app_code: Optional[str], env_code: Optional[str], c
                 "auth_config": m.auth_config or {},
                 "performance_config": m.performance_config or {},
                 "max_response_time_ms": m.max_response_time_ms,
-                "max_error_rate_percent": float(m.max_error_rate_percent) if m.max_error_rate_percent is not None else None,
+                "max_error_rate_percent": (
+                    float(m.max_error_rate_percent)
+                    if m.max_error_rate_percent is not None
+                    else None
+                ),
                 "is_active": m.is_active,
-                "launched_date": m.launched_date.isoformat() if m.launched_date else None,
-                "deprecated_date": m.deprecated_date.isoformat() if m.deprecated_date else None,
+                "launched_date": (
+                    m.launched_date.isoformat() if m.launched_date else None
+                ),
+                "deprecated_date": (
+                    m.deprecated_date.isoformat() if m.deprecated_date else None
+                ),
                 "priority": m.priority,
                 "created_at": m.created_at.isoformat() if m.created_at else None,
                 "updated_at": m.updated_at.isoformat() if m.updated_at else None,
@@ -460,15 +558,15 @@ def _list_mappings_full_impl(app_code: Optional[str], env_code: Optional[str], c
 @tool(
     name="get_app_deployments",
     description="Get all countries where a specific app is deployed",
-    show_result=False
+    show_result=False,
 )
 def get_app_countries(app_code: str) -> str:
     """
     Get all countries where a specific app is deployed.
-    
+
     Args:
         app_code: The application code (e.g., "EVA", "ONEAPP")
-    
+
     Returns:
         str: JSON string with app's deployment countries
     """
@@ -476,17 +574,17 @@ def get_app_countries(app_code: str) -> str:
 
 
 @tool(
-    name="get_country_apps", 
+    name="get_country_apps",
     description="Get all apps deployed in a specific country",
-    show_result=False
+    show_result=False,
 )
 def get_country_deployments(country_code: str) -> str:
     """
     Get all apps deployed in a specific country.
-    
+
     Args:
         country_code: The country code (e.g., "RO", "FR", "CO")
-    
+
     Returns:
         str: JSON string with country's deployed apps
     """
@@ -513,13 +611,17 @@ def list_endpoints(app_code: str, environment_code: str, country_code: str) -> s
     try:
         svc = build_default_service()
         eps = svc.discover_endpoints(app_code, environment_code, country_code)
-        return json.dumps({
-            "status": "success",
-            "count": len(eps),
-            "endpoints": eps,
-        })
+        return json.dumps(
+            {
+                "status": "success",
+                "count": len(eps),
+                "endpoints": eps,
+            }
+        )
     except Exception as e:
-        return json.dumps({
-            "status": "error",
-            "message": f"Failed to list endpoints: {str(e)}",
-        })
+        return json.dumps(
+            {
+                "status": "error",
+                "message": f"Failed to list endpoints: {str(e)}",
+            }
+        )

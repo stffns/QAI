@@ -16,30 +16,41 @@ import os
 import shlex
 import subprocess
 import threading
-import uuid
 import time
+import uuid
 from pathlib import Path
 from typing import Dict, Optional
 
 try:
-    from src.application.performance.dto import SimulationParams
     from src.application.performance.config_builder import ConfigBuilder
+    from src.application.performance.dto import SimulationParams
+    from src.infrastructure.gatling.results_parser import (
+        create_enhanced_summary,
+        parse_gatling_results,
+    )
     from src.infrastructure.gatling.status_reader import InMemoryStatusStore
-    from src.infrastructure.gatling.results_parser import parse_gatling_results, create_enhanced_summary
 except ImportError:  # pragma: no cover
     import sys
+
     sys.path.append(str(Path(__file__).resolve().parents[2]))
-    from src.application.performance.dto import SimulationParams  # type: ignore
     from src.application.performance.config_builder import ConfigBuilder  # type: ignore
-    from src.infrastructure.gatling.status_reader import InMemoryStatusStore  # type: ignore
-    from src.infrastructure.gatling.results_parser import parse_gatling_results, create_enhanced_summary  # type: ignore
+    from src.application.performance.dto import SimulationParams  # type: ignore
+    from src.infrastructure.gatling.results_parser import (  # type: ignore
+        create_enhanced_summary,
+        parse_gatling_results,
+    )
+    from src.infrastructure.gatling.status_reader import (
+        InMemoryStatusStore,  # type: ignore
+    )
 
 
 RUNS_BASE = Path("data/perf_runs")
 
 
 class ShellGatlingRunner:
-    def __init__(self, status_store: InMemoryStatusStore, env: Optional[Dict[str, str]] = None):
+    def __init__(
+        self, status_store: InMemoryStatusStore, env: Optional[Dict[str, str]] = None
+    ):
         self.status_store = status_store
         self.env = {**os.environ, **(env or {})}
         self._metrics = None  # lazy-init prometheus metrics
@@ -50,9 +61,22 @@ class ShellGatlingRunner:
             return
         try:  # pragma: no cover
             from prometheus_client import Counter, Histogram
-            started = Counter("qa_perf_runs_started_total", "Runs started by runner", labelnames=("runner",))
-            finished = Counter("qa_perf_runs_finished_total", "Runs finished by status", labelnames=("runner", "status"))
-            duration = Histogram("qa_perf_run_duration_seconds", "Run duration seconds", labelnames=("runner",))
+
+            started = Counter(
+                "qa_perf_runs_started_total",
+                "Runs started by runner",
+                labelnames=("runner",),
+            )
+            finished = Counter(
+                "qa_perf_runs_finished_total",
+                "Runs finished by status",
+                labelnames=("runner", "status"),
+            )
+            duration = Histogram(
+                "qa_perf_run_duration_seconds",
+                "Run duration seconds",
+                labelnames=("runner",),
+            )
             self._metrics = (started, finished, duration)
         except Exception:
             self._metrics = ()
@@ -63,8 +87,14 @@ class ShellGatlingRunner:
         results_dir = run_dir / "results"
         results_dir.mkdir(exist_ok=True)
 
-        resolved_url = params.endpoint_slug if params.endpoint_slug and params.endpoint_slug.startswith("http") else None
-        resolved_scenarios = [sp.endpoint_slug or "" for sp in (params.scenarios or [])] or None
+        resolved_url = (
+            params.endpoint_slug
+            if params.endpoint_slug and params.endpoint_slug.startswith("http")
+            else None
+        )
+        resolved_scenarios = [
+            sp.endpoint_slug or "" for sp in (params.scenarios or [])
+        ] or None
 
         cfg = ConfigBuilder.build(params, resolved_url, resolved_scenarios)
         cfg_path = run_dir / "config.json"
@@ -72,8 +102,12 @@ class ShellGatlingRunner:
             json.dump(cfg, f, indent=2)
         return cfg_path
 
-    def _build_command(self, execution_id: str, cfg_path: Path) -> tuple[list[str], Path]:
-        sim_class = self.env.get("GATLING_SIMULATION_CLASS", "com.qai.GenericHttpSimulation")
+    def _build_command(
+        self, execution_id: str, cfg_path: Path
+    ) -> tuple[list[str], Path]:
+        sim_class = self.env.get(
+            "GATLING_SIMULATION_CLASS", "com.qai.GenericHttpSimulation"
+        )
         run_dir = cfg_path.parent
         results_dir = run_dir / "results"
 
@@ -144,8 +178,14 @@ class ShellGatlingRunner:
             try:
                 # Use enhanced summary for better data extraction
                 enhanced_summary = create_enhanced_summary(results_dir)
-                summary_to_write = enhanced_summary if enhanced_summary.get("parsed") else parse_gatling_results(results_dir)
-                (results_dir / "summary.json").write_text(json.dumps(summary_to_write, indent=2))
+                summary_to_write = (
+                    enhanced_summary
+                    if enhanced_summary.get("parsed")
+                    else parse_gatling_results(results_dir)
+                )
+                (results_dir / "summary.json").write_text(
+                    json.dumps(summary_to_write, indent=2)
+                )
             except Exception:
                 # best-effort only
                 pass
@@ -186,6 +226,10 @@ class ShellGatlingRunner:
         cfg_path = self._persist_config(execution_id, params)
         cmd, results_dir = self._build_command(execution_id, cfg_path)
 
-        t = threading.Thread(target=self._run_process, args=(execution_id, cmd, cfg_path.parent), daemon=True)
+        t = threading.Thread(
+            target=self._run_process,
+            args=(execution_id, cmd, cfg_path.parent),
+            daemon=True,
+        )
         t.start()
         return execution_id

@@ -9,10 +9,18 @@ from .dto import ScenarioParams, SimulationParams
 
 class ConfigBuilder:
     @staticmethod
-    def build(params: SimulationParams, resolved_url: str | None, resolved_scenarios: List[str] | None = None) -> Dict:
+    def build(
+        params: SimulationParams,
+        resolved_url: str | None,
+        resolved_scenarios: List[str] | None = None,
+    ) -> Dict:
         def scenario_to_dict(sp: ScenarioParams, default_url: str) -> Dict[str, Any]:
             # If the scenario provides a full URL, use it; otherwise prefer the resolved default_url
-            endpoint = sp.endpoint_slug if (sp.endpoint_slug and sp.endpoint_slug.startswith("http")) else default_url
+            endpoint = (
+                sp.endpoint_slug
+                if (sp.endpoint_slug and sp.endpoint_slug.startswith("http"))
+                else default_url
+            )
             return {
                 "scenario_slug": sp.scenario_slug,
                 "endpoint": endpoint,
@@ -38,7 +46,11 @@ class ConfigBuilder:
             scenarios: List[Dict[str, Any]] = []
             for idx, sp in enumerate(params.scenarios):
                 # When multi-scenario, prefer resolved_scenarios[idx] if provided
-                default = resolved_scenarios[idx] if (resolved_scenarios and idx < len(resolved_scenarios)) else (resolved_url or "")
+                default = (
+                    resolved_scenarios[idx]
+                    if (resolved_scenarios and idx < len(resolved_scenarios))
+                    else (resolved_url or "")
+                )
                 scenarios.append(scenario_to_dict(sp, default))
             config["scenarios"] = scenarios
         else:
@@ -54,7 +66,10 @@ class ConfigBuilder:
             config.update(
                 {
                     "endpoint": safe_url,
-                    "load": {"users": params.users, "duration_sec": params.duration_sec},
+                    "load": {
+                        "users": params.users,
+                        "duration_sec": params.duration_sec,
+                    },
                     "scenario": scenario_to_dict(single, safe_url),
                 }
             )

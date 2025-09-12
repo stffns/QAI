@@ -17,7 +17,7 @@ The configuration system follows a modular approach with specialized managers:
 
 ### Configuration Priority:
 1. Environment variables (highest priority)
-2. YAML configuration file 
+2. YAML configuration file
 3. Default values (lowest priority)
 
 ## Usage Examples
@@ -41,7 +41,7 @@ export MODEL_ID=gpt-4
 export MODEL_API_KEY=sk-...
 export MODEL_TEMPERATURE=0.7
 
-# Database configuration  
+# Database configuration
 export DB_URL=postgresql://user:pass@localhost:5432/qadb
 export DB_POOL_SIZE=20
 
@@ -92,6 +92,23 @@ Common validation errors and solutions are documented in the individual model cl
 # Main Configuration Interfaces
 # ============================================================================
 
+# Import all configuration models for direct usage
+from .models.core import (  # Core configuration models; Enums for validation
+    DatabaseConfig,
+    DatabaseType,
+    ModelConfig,
+    ModelProvider,
+    ToolConfig,
+    ToolsConfig,
+)
+from .models.interface import (  # Interface configuration models
+    AppEnvironmentConfig,
+    InterfaceConfig,
+)
+from .models.logging import (  # Logging system configuration
+    LoggingConfig,
+)
+
 # Primary interfaces for modern usage
 from .settings import Settings, get_settings, reset_settings
 
@@ -99,29 +116,8 @@ from .settings import Settings, get_settings, reset_settings
 # Core Configuration Models
 # ============================================================================
 
-# Import all configuration models for direct usage
-from .models.core import (
-    # Core configuration models
-    ModelConfig,
-    DatabaseConfig, 
-    ToolConfig,
-    ToolsConfig,
-    
-    # Enums for validation
-    ModelProvider,
-    DatabaseType,
-)
 
-from .models.interface import (
-    # Interface configuration models
-    InterfaceConfig,
-    AppEnvironmentConfig,
-)
 
-from .models.logging import (
-    # Logging system configuration
-    LoggingConfig,
-)
 
 # ============================================================================
 # Optional WebSocket Configuration
@@ -130,15 +126,16 @@ from .models.logging import (
 # WebSocket models are imported conditionally since they're optional
 try:
     from .models.websocket import (
-        WebSocketConfig,
-        ServerConfig,
-        SecurityConfig,
         AuthenticationConfig,
         CorsConfig,
         RateLimitConfig,
+        SecurityConfig,
+        ServerConfig,
         SSLConfig,
-        WebSocketLoggingConfig
+        WebSocketConfig,
+        WebSocketLoggingConfig,
     )
+
     _WEBSOCKET_AVAILABLE = True
 except ImportError:
     # WebSocket dependencies not available
@@ -156,13 +153,14 @@ __description__ = "Comprehensive configuration management for QA Intelligence"
 # Configuration Validation Utilities
 # ============================================================================
 
+
 def validate_current_config() -> bool:
     """
     Validate the current configuration setup.
-    
+
     Returns:
         True if configuration is valid, False otherwise
-        
+
     Raises:
         ValidationError: If configuration has validation errors
     """
@@ -172,6 +170,7 @@ def validate_current_config() -> bool:
         return True
     except Exception as e:
         import warnings
+
         warnings.warn(f"Configuration validation failed: {e}", UserWarning)
         return False
 
@@ -179,7 +178,7 @@ def validate_current_config() -> bool:
 def get_config_summary() -> dict:
     """
     Get a summary of the current configuration.
-    
+
     Returns:
         Dictionary with configuration summary
     """
@@ -201,23 +200,27 @@ def get_config_summary() -> dict:
                 "enabled_tools": [t.name for t in settings.tools.get_enabled_tools()],
             },
             "interface": {
-                "playground_enabled": settings.interface.playground.get("enabled", False),
+                "playground_enabled": settings.interface.playground.get(
+                    "enabled", False
+                ),
                 "api_enabled": True,  # Always available
-            }
+            },
         }
     except Exception as e:
         return {"error": str(e)}
 
+
 # ============================================================================
-# Development and Debugging Utilities  
+# Development and Debugging Utilities
 # ============================================================================
+
 
 def debug_config():
     """Print detailed configuration information for debugging."""
     try:
         settings = get_settings()
         summary = get_config_summary()
-        
+
         print("=" * 60)
         print("QA Intelligence Configuration Debug")
         print("=" * 60)
@@ -225,16 +228,17 @@ def debug_config():
         print(f"Settings Type: {type(settings).__name__}")
         print(f"Config File: {settings.config_file}")
         print()
-        
+
         print("Configuration Summary:")
         for section, data in summary.items():
             print(f"  {section}:")
             for key, value in data.items():
                 print(f"    {key}: {value}")
         print("=" * 60)
-        
+
     except Exception as e:
         print(f"Error debugging configuration: {e}")
+
 
 # ============================================================================
 # Public API Definition
@@ -243,31 +247,25 @@ def debug_config():
 __all__ = [
     # Main interfaces
     "Settings",
-    "get_settings", 
+    "get_settings",
     "reset_settings",
-    
     # Core models
     "ModelConfig",
     "DatabaseConfig",
-    "ToolConfig", 
+    "ToolConfig",
     "ToolsConfig",
-    
     # Interface models
     "InterfaceConfig",
     "AppEnvironmentConfig",
-    
     # Infrastructure models
     "LoggingConfig",
-    
     # Enums
     "ModelProvider",
     "DatabaseType",
-    
     # Utilities
     "validate_current_config",
     "get_config_summary",
     "debug_config",
-    
     # Package info
     "__version__",
     "__author__",
@@ -276,16 +274,18 @@ __all__ = [
 
 # Add WebSocket models to public API if available
 if _WEBSOCKET_AVAILABLE:
-    __all__.extend([
-        "WebSocketConfig",
-        "ServerConfig", 
-        "SecurityConfig",
-        "AuthenticationConfig",
-        "CorsConfig",
-        "RateLimitConfig",
-        "SSLConfig",
-        "WebSocketLoggingConfig"
-    ])
+    __all__.extend(
+        [
+            "WebSocketConfig",
+            "ServerConfig",
+            "SecurityConfig",
+            "AuthenticationConfig",
+            "CorsConfig",
+            "RateLimitConfig",
+            "SSLConfig",
+            "WebSocketLoggingConfig",
+        ]
+    )
 
 # ============================================================================
 # Initialization and Validation
@@ -293,7 +293,10 @@ if _WEBSOCKET_AVAILABLE:
 
 # Validate configuration on import if not in test environment
 import os
-_validate_on_import = os.getenv("QA_CONFIG_VALIDATE_ON_IMPORT", "true").lower() == "true"
+
+_validate_on_import = (
+    os.getenv("QA_CONFIG_VALIDATE_ON_IMPORT", "true").lower() == "true"
+)
 if (
     os.getenv("ENVIRONMENT") != "test"
     and os.getenv("SKIP_CONFIG_VALIDATION") != "true"
@@ -305,8 +308,9 @@ if (
     except Exception:
         # Don't fail import, just warn
         import warnings
+
         warnings.warn(
             "Configuration validation failed during import. "
             "Run 'python config.py' for detailed validation.",
-            UserWarning
+            UserWarning,
         )

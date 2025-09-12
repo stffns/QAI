@@ -11,6 +11,7 @@ Modelo mejorado para países con:
 from datetime import datetime, timezone, date
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import UniqueConstraint, Index
 from pydantic import field_validator, model_validator
 import re
 
@@ -18,6 +19,11 @@ if TYPE_CHECKING:
     from .apps import Apps
     from .app_environment_country_mappings import AppEnvironmentCountryMapping
     from .application_endpoints import ApplicationEndpoint
+else:  # Ensure ApplicationEndpoint is imported at runtime for mapper resolution
+    try:  # pragma: no cover
+        from .application_endpoints import ApplicationEndpoint  # noqa: F401
+    except Exception:  # pragma: no cover
+        ApplicationEndpoint = None  # type: ignore
 
 
 class Countries(SQLModel, table=True):
@@ -34,7 +40,11 @@ class Countries(SQLModel, table=True):
     - Auditoría completa
     """
     
-    __tablename__ = 'countries_master'
+    __tablename__ = 'countries_master'  # type: ignore[assignment]
+    __table_args__ = (
+        UniqueConstraint('country_code', name='uq_countries_master_country_code'),
+        Index('ix_countries_master_country_code', 'country_code'),
+    )
     
     # Primary key
     id: Optional[int] = Field(default=None, primary_key=True, description="Primary key")

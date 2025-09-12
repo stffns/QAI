@@ -10,44 +10,57 @@ from typing import Optional
 try:
     from src.logging_config import get_logger
 except ImportError:  # pragma: no cover - fallback for direct module runs
-    import sys, os
+    import os
+    import sys
+
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
     from src.logging_config import get_logger  # type: ignore
 
+from .auto_cleanup import PerformanceAutoCleanup
 from .config_builder import ConfigBuilder
-from .dto import RunStatus, RunSubmitted, SimulationParams, ScenarioParams
+from .dto import RunStatus, RunSubmitted, ScenarioParams, SimulationParams
 from .guardrails import Guardrails
 from .ports import RunnerPort, StatusReaderPort
 
 # DB repositories and UoW
 try:
-    from database.repositories.unit_of_work import UnitOfWorkFactory
+    from database.models.performance_test_executions import (
+        ExecutionScope,
+        ExecutionStatus,
+    )
+    from database.repositories.application_endpoints_repository import (
+        ApplicationEndpointRepository,
+    )
     from database.repositories.apps_repository import AppsRepository
-    from database.repositories.environments_repository import EnvironmentsRepository
     from database.repositories.countries_repository import CountriesRepository
-    from database.repositories.application_endpoints_repository import ApplicationEndpointRepository
+    from database.repositories.environments_repository import EnvironmentsRepository
     from database.repositories.performance_test_executions import (
         PerformanceTestExecutionRepository,
     )
-    from database.models.performance_test_executions import (
-        ExecutionStatus,
-        ExecutionScope,
-    )
+    from database.repositories.unit_of_work import UnitOfWorkFactory
 except ImportError:  # pragma: no cover - fallback for direct runs
-    import sys, os
+    import os
+    import sys
+
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-    from database.repositories.unit_of_work import UnitOfWorkFactory  # type: ignore
+    from database.models.performance_test_executions import (  # type: ignore
+        ExecutionScope,
+        ExecutionStatus,
+    )
+    from database.repositories.application_endpoints_repository import (
+        ApplicationEndpointRepository,  # type: ignore
+    )
     from database.repositories.apps_repository import AppsRepository  # type: ignore
-    from database.repositories.environments_repository import EnvironmentsRepository  # type: ignore
-    from database.repositories.countries_repository import CountriesRepository  # type: ignore
-    from database.repositories.application_endpoints_repository import ApplicationEndpointRepository  # type: ignore
+    from database.repositories.countries_repository import (
+        CountriesRepository,  # type: ignore
+    )
+    from database.repositories.environments_repository import (
+        EnvironmentsRepository,  # type: ignore
+    )
     from database.repositories.performance_test_executions import (  # type: ignore
         PerformanceTestExecutionRepository,
     )
-    from database.models.performance_test_executions import (  # type: ignore
-        ExecutionStatus,
-        ExecutionScope,
-    )
+    from database.repositories.unit_of_work import UnitOfWorkFactory  # type: ignore
 
 logger = get_logger("PerformanceOrchestrator")
 
@@ -61,10 +74,17 @@ class PerformanceOrchestrator:
     - Reads status via StatusReaderPort
     """
 
-    def __init__(self, runner: RunnerPort, status_reader: StatusReaderPort, uow_factory: UnitOfWorkFactory | None = None):
+    def __init__(
+        self,
+        runner: RunnerPort,
+        status_reader: StatusReaderPort,
+        uow_factory: UnitOfWorkFactory | None = None,
+    ):
         self.runner = runner
         self.status_reader = status_reader
         self.uow_factory = uow_factory
+        # Initialize auto-cleanup with same database access
+        self.auto_cleanup = PerformanceAutoCleanup(uow_factory)
 
     # Placeholder: In next step, inject UnitOfWorkFactory to resolve DB mappings
     def _resolve_endpoint_url(self, params: SimulationParams) -> str:
@@ -73,10 +93,14 @@ class PerformanceOrchestrator:
             return params.endpoint_slug
 
         if not self.uow_factory:
-            raise ValueError("Endpoint resolution requires database access; please provide a full endpoint_url for now.")
+            raise ValueError(
+                "Endpoint resolution requires database access; please provide a full endpoint_url for now."
+            )
 
         if not params.endpoint_slug:
-            raise ValueError("endpoint_slug is required (logical endpoint name) or pass a full endpoint URL")
+            raise ValueError(
+                "endpoint_slug is required (logical endpoint name) or pass a full endpoint URL"
+            )
 
         endpoint_name = params.endpoint_slug
 
@@ -113,7 +137,9 @@ class PerformanceOrchestrator:
                 )
 
             if not ep or not ep.endpoint_url:
-                raise ValueError(f"Endpoint not found for name '{endpoint_name}' in app={params.app_slug}, env={params.environment}, country={params.country_code}")
+                raise ValueError(
+                    f"Endpoint not found for name '{endpoint_name}' in app={params.app_slug}, env={params.environment}, country={params.country_code}"
+                )
 
             return ep.endpoint_url
 
@@ -133,9 +159,13 @@ class PerformanceOrchestrator:
                 continue
             # If DB is not available, fail fast requiring explicit URL
             if not self.uow_factory:
-                raise ValueError("Endpoint resolution requires database access when endpoint_slug is not a full URL.")
+                raise ValueError(
+                    "Endpoint resolution requires database access when endpoint_slug is not a full URL."
+                )
             if not candidate:
-                raise ValueError("Each scenario must set endpoint_slug or provide a global endpoint URL in params.endpoint_slug")
+                raise ValueError(
+                    "Each scenario must set endpoint_slug or provide a global endpoint URL in params.endpoint_slug"
+                )
 
             endpoint_name = candidate
             with self.uow_factory.create_scope() as uow:
@@ -148,7 +178,9 @@ class PerformanceOrchestrator:
                 env = env_repo.get_by_code(params.environment)
                 country = c_repo.get_by_code(params.country_code)
                 if not app or not env or not country:
-                    raise ValueError("Invalid app/environment/country while resolving scenario endpoint")
+                    raise ValueError(
+                        "Invalid app/environment/country while resolving scenario endpoint"
+                    )
 
                 ep = ep_repo.get_by_combination(
                     application_id=app.id,  # type: ignore
@@ -164,7 +196,9 @@ class PerformanceOrchestrator:
                         endpoint_name=endpoint_name,
                     )
                 if not ep or not ep.endpoint_url:
-                    raise ValueError(f"Endpoint not found for scenario '{getattr(sp, 'scenario_slug', None) or endpoint_name}'")
+                    raise ValueError(
+                        f"Endpoint not found for scenario '{getattr(sp, 'scenario_slug', None) or endpoint_name}'"
+                    )
                 urls.append(ep.endpoint_url)
         return urls
 
@@ -215,7 +249,9 @@ class PerformanceOrchestrator:
                             "execution_name": name,
                             "status": ExecutionStatus.PENDING,
                             "execution_environment": params.environment,
-                            "execution_scope": scope_map.get(params.test_type, ExecutionScope.FUNCTIONAL),
+                            "execution_scope": scope_map.get(
+                                params.test_type, ExecutionScope.FUNCTIONAL
+                            ),
                             "test_purpose": params.test_type,
                             "execution_notes": params.notes,
                             "configuration_snapshot": config,
@@ -265,7 +301,12 @@ class PerformanceOrchestrator:
             chosen.finished_at = datetime.utcnow()
 
         # Best-effort DB sync forward
-        if self.uow_factory and db_status and reader_status and order.get(reader_status.status, 0) > order.get(db_status.status, 0):
+        if (
+            self.uow_factory
+            and db_status
+            and reader_status
+            and order.get(reader_status.status, 0) > order.get(db_status.status, 0)
+        ):
             try:
                 with self.uow_factory.create_scope() as uow:
                     exec_repo = uow.get_repository(PerformanceTestExecutionRepository)
@@ -275,20 +316,45 @@ class PerformanceOrchestrator:
                         "succeeded": ExecutionStatus.COMPLETED,
                         "failed": ExecutionStatus.FAILED,
                     }
-                    end_time = datetime.utcnow() if reader_status.status in {"succeeded", "failed"} else None
-                    exec_repo.update_status(execution_id, status_map[reader_status.status], end_time=end_time)
+                    end_time = (
+                        datetime.utcnow()
+                        if reader_status.status in {"succeeded", "failed"}
+                        else None
+                    )
+                    exec_repo.update_status(
+                        execution_id,
+                        status_map[reader_status.status],
+                        end_time=end_time,
+                    )
                     # When terminal, try to parse results summary.json under data/perf_runs/<id>/results
                     if reader_status.status in {"succeeded", "failed"}:
                         try:
-                            run_results = Path("data/perf_runs") / execution_id / "results"
+                            run_results = (
+                                Path("data/perf_runs") / execution_id / "results"
+                            )
                             summary_path = run_results / "summary.json"
                             if summary_path.exists():
                                 import json
+
                                 summary = json.loads(summary_path.read_text())
                                 # Use summary.json data directly - no reparsing needed
-                                self._persist_summary_data(execution_id, summary, run_results, uow)
+                                self._persist_summary_data(
+                                    execution_id, summary, run_results, uow
+                                )
                         except Exception:
                             pass
+
+                        # Trigger auto-cleanup after successful execution
+                        if reader_status.status == "succeeded":
+                            try:
+                                self.auto_cleanup.post_execution_cleanup()
+                                logger.info(
+                                    f"🧹 Auto-cleanup completed after successful execution {execution_id}"
+                                )
+                            except Exception as e:
+                                logger.warning(
+                                    f"⚠️  Auto-cleanup failed after execution {execution_id}: {e}"
+                                )
             except Exception:
                 pass
 
@@ -304,42 +370,79 @@ class PerformanceOrchestrator:
                     detected_status = "succeeded"
                 elif log_path.exists():
                     try:
-                        tail = "\n".join(log_path.read_text(encoding="utf-8", errors="ignore").splitlines()[-200:])
-                        if "BUILD FAILURE" in tail or "[ERROR]" in tail or "Failed to execute goal" in tail:
+                        tail = "\n".join(
+                            log_path.read_text(
+                                encoding="utf-8", errors="ignore"
+                            ).splitlines()[-200:]
+                        )
+                        if (
+                            "BUILD FAILURE" in tail
+                            or "[ERROR]" in tail
+                            or "Failed to execute goal" in tail
+                        ):
                             detected_status = "failed"
                     except Exception:
                         pass
                 if detected_status:
                     with self.uow_factory.create_scope() as uow:
-                        exec_repo = uow.get_repository(PerformanceTestExecutionRepository)
+                        exec_repo = uow.get_repository(
+                            PerformanceTestExecutionRepository
+                        )
                         status_map = {
                             "succeeded": ExecutionStatus.COMPLETED,
                             "failed": ExecutionStatus.FAILED,
                         }
                         end_time = datetime.utcnow()
                         try:
-                            exec_repo.update_status(execution_id, status_map[detected_status], end_time=end_time)
+                            exec_repo.update_status(
+                                execution_id,
+                                status_map[detected_status],
+                                end_time=end_time,
+                            )
                         except Exception:
                             pass
                         if summary_path.exists():
                             try:
                                 import json
+
                                 summary = json.loads(summary_path.read_text())
                                 # Use summary.json data directly - no reparsing needed
-                                self._persist_summary_data(execution_id, summary, run_results, uow)
+                                self._persist_summary_data(
+                                    execution_id, summary, run_results, uow
+                                )
                             except Exception:
                                 pass
                     # Reflect detection in chosen status
                     if detected_status == "succeeded":
-                        chosen = RunStatus(execution_id=execution_id, status="succeeded", finished_at=datetime.utcnow())
+                        chosen = RunStatus(
+                            execution_id=execution_id,
+                            status="succeeded",
+                            finished_at=datetime.utcnow(),
+                        )
+                        # Trigger auto-cleanup after successful execution detection
+                        try:
+                            self.auto_cleanup.post_execution_cleanup()
+                            logger.info(
+                                f"🧹 Auto-cleanup completed after successful execution detection {execution_id}"
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"⚠️  Auto-cleanup failed after execution detection {execution_id}: {e}"
+                            )
                     elif detected_status == "failed":
-                        chosen = RunStatus(execution_id=execution_id, status="failed", finished_at=datetime.utcnow())
+                        chosen = RunStatus(
+                            execution_id=execution_id,
+                            status="failed",
+                            finished_at=datetime.utcnow(),
+                        )
             except Exception:
                 pass
 
         return chosen
 
-    def discover_endpoints(self, app_slug: str, environment: str, country_code: str) -> list[dict]:
+    def discover_endpoints(
+        self, app_slug: str, environment: str, country_code: str
+    ) -> list[dict]:
         if not self.uow_factory:
             return []
 
@@ -365,12 +468,16 @@ class PerformanceOrchestrator:
 
             data: list[dict] = []
             for e in eps:
-                data.append({
-                    "name": e.endpoint_name,
-                    "url": e.endpoint_url,
-                    "method": getattr(e, "http_method", None),
-                    "scope": "country" if getattr(e, "country_id", None) else "global",
-                })
+                data.append(
+                    {
+                        "name": e.endpoint_name,
+                        "url": e.endpoint_url,
+                        "method": getattr(e, "http_method", None),
+                        "scope": (
+                            "country" if getattr(e, "country_id", None) else "global"
+                        ),
+                    }
+                )
             return data
 
     def get_execution(self, execution_id: str) -> dict:
@@ -386,16 +493,25 @@ class PerformanceOrchestrator:
                 ex = exec_repo.find_by_execution_id(execution_id)
                 if not ex:
                     return {}
+
                 def v(name):
                     return getattr(ex, name, None)
+
                 def enum_name(val):
                     try:
-                        return val.name if hasattr(val, "name") else (str(val) if val is not None else None)
+                        return (
+                            val.name
+                            if hasattr(val, "name")
+                            else (str(val) if val is not None else None)
+                        )
                     except Exception:
                         return str(val) if val is not None else None
+
                 start_val = v("start_time")
                 end_val = v("end_time")
-                start_iso = start_val.isoformat() if isinstance(start_val, datetime) else None
+                start_iso = (
+                    start_val.isoformat() if isinstance(start_val, datetime) else None
+                )
                 end_iso = end_val.isoformat() if isinstance(end_val, datetime) else None
                 return {
                     "execution_id": v("execution_id"),
@@ -451,61 +567,87 @@ class PerformanceOrchestrator:
                 completed = exec_repo.find_by_status(ExecutionStatus.COMPLETED)[:limit]
                 failed = exec_repo.find_by_status(ExecutionStatus.FAILED)[:limit]
 
-                all_items = list(running) + list(pending) + list(completed) + list(failed)
+                all_items = (
+                    list(running) + list(pending) + list(completed) + list(failed)
+                )
                 # Sort by created_at desc if present
-                all_items.sort(key=lambda x: getattr(x, "created_at", datetime.min), reverse=True)
+                all_items.sort(
+                    key=lambda x: getattr(x, "created_at", datetime.min), reverse=True
+                )
                 all_items = all_items[:limit]
                 return [self._from_db_execution(ex) for ex in all_items]
         except Exception:
             return []
 
-    def _persist_summary_data(self, execution_id: str, summary: dict, run_results: Path, uow) -> None:
+    def _persist_summary_data(
+        self, execution_id: str, summary: dict, run_results: Path, uow
+    ) -> None:
         """Persist both global execution metrics and endpoint-level results from summary.json.
-        
+
         Uses the already parsed summary.json data directly - no reparsing needed.
         """
         exec_repo = uow.get_repository(PerformanceTestExecutionRepository)
-        
+
         # Extract global fields for execution table from summary
         fields = self._extract_global_fields_from_summary(summary, run_results)
         exec_repo.update_metrics(execution_id, fields)
-        
+
         # Persist endpoint-level results if available
         self._persist_endpoint_results_from_summary(execution_id, summary, uow)
 
-    def _extract_global_fields_from_summary(self, summary: dict, run_results: Path) -> dict:
+    def _extract_global_fields_from_summary(
+        self, summary: dict, run_results: Path
+    ) -> dict:
         """Extract global execution fields directly from summary.json data."""
         fields = {}
-        
+
         # Extract primary metrics directly from summary
         if summary.get("total") is not None:
-            fields["total_requests"] = int(summary["total"]) if summary["total"] is not None else 0
+            fields["total_requests"] = (
+                int(summary["total"]) if summary["total"] is not None else 0
+            )
         if summary.get("ok") is not None:
-            fields["successful_requests"] = int(summary["ok"]) if summary["ok"] is not None else 0
+            fields["successful_requests"] = (
+                int(summary["ok"]) if summary["ok"] is not None else 0
+            )
         if summary.get("ko") is not None:
-            fields["failed_requests"] = int(summary["ko"]) if summary["ko"] is not None else 0
-            
+            fields["failed_requests"] = (
+                int(summary["ko"]) if summary["ko"] is not None else 0
+            )
+
         # Extract timing metrics from summary
         if summary.get("mean_rps") is not None:
-            fields["avg_rps"] = float(summary["mean_rps"]) if summary["mean_rps"] is not None else None
+            fields["avg_rps"] = (
+                float(summary["mean_rps"]) if summary["mean_rps"] is not None else None
+            )
         if summary.get("mean_rt") is not None:
-            fields["avg_response_time"] = float(summary["mean_rt"]) if summary["mean_rt"] is not None else None
+            fields["avg_response_time"] = (
+                float(summary["mean_rt"]) if summary["mean_rt"] is not None else None
+            )
         if summary.get("p95") is not None:
-            fields["p95_response_time"] = float(summary["p95"]) if summary["p95"] is not None else None
+            fields["p95_response_time"] = (
+                float(summary["p95"]) if summary["p95"] is not None else None
+            )
         if summary.get("p99") is not None:
-            fields["p99_response_time"] = float(summary["p99"]) if summary["p99"] is not None else None
+            fields["p99_response_time"] = (
+                float(summary["p99"]) if summary["p99"] is not None else None
+            )
         if summary.get("min_rt") is not None:
-            fields["min_response_time"] = float(summary["min_rt"]) if summary["min_rt"] is not None else None
+            fields["min_response_time"] = (
+                float(summary["min_rt"]) if summary["min_rt"] is not None else None
+            )
         if summary.get("max_rt") is not None:
-            fields["max_response_time"] = float(summary["max_rt"]) if summary["max_rt"] is not None else None
-            
+            fields["max_response_time"] = (
+                float(summary["max_rt"]) if summary["max_rt"] is not None else None
+            )
+
         # Add additional percentiles if available in global_stats
         global_stats = summary.get("global_stats", {})
         if global_stats.get("p50") is not None:
             fields["p50_response_time"] = float(global_stats["p50"])
         if global_stats.get("p75") is not None:
             fields["p75_response_time"] = float(global_stats["p75"])
-            
+
         # Compute error rate
         try:
             tot = fields.get("total_requests") or 0
@@ -513,32 +655,38 @@ class PerformanceOrchestrator:
             fields["error_rate"] = (fail / tot) if tot else 0.0
         except Exception:
             pass
-            
+
         # Add metadata fields
         fields["gatling_report_path"] = str(run_results)
         metadata = summary.get("metadata", {})
         fields["sla_compliance"] = metadata.get("all_passed", False)
-        fields["validation_status"] = "passed" if metadata.get("all_passed") else "failed"
-        
+        fields["validation_status"] = (
+            "passed" if metadata.get("all_passed") else "failed"
+        )
+
         return fields
 
-    def _persist_endpoint_results_from_summary(self, execution_id: str, summary: dict, uow) -> None:
+    def _persist_endpoint_results_from_summary(
+        self, execution_id: str, summary: dict, uow
+    ) -> None:
         """Persist endpoint-level results directly from summary.json data."""
         try:
-            from database.repositories.performance_endpoint_results_repository import PerformanceEndpointResultsRepository
-            
+            from database.repositories.performance_endpoint_results_repository import (
+                PerformanceEndpointResultsRepository,
+            )
+
             endpoints = summary.get("endpoints", [])
             if not endpoints:
                 return
-                
+
             per_repo = uow.get_repository(PerformanceEndpointResultsRepository)
-            
+
             # Clear previous results to avoid duplicates
             try:
                 per_repo.delete_by_execution_id(execution_id)
             except Exception:
                 pass
-                
+
             # Helper function for safe float conversion
             def _flt(v):
                 try:
@@ -551,7 +699,7 @@ class PerformanceOrchestrator:
                 except Exception:
                     return None
                 return None
-                
+
             # Persist each endpoint result
             for item in endpoints:
                 name = str(item.get("name") or "request")
@@ -559,18 +707,48 @@ class PerformanceOrchestrator:
                     execution_id=execution_id,
                     endpoint_name=name,
                     endpoint_url=item.get("url"),  # Enhanced data may include URL
-                    http_method=item.get("method", "GET"),  # Enhanced data may include method
-                    total_requests=int(item.get("total") or 0),
-                    successful_requests=int(item.get("ok") or 0),
-                    failed_requests=int(item.get("ko") or 0),
-                    p50_response_time=_flt(item.get("p50")),
-                    p75_response_time=_flt(item.get("p75")),
-                    p95_response_time=_flt(item.get("p95")),
-                    p99_response_time=_flt(item.get("p99")),
-                    avg_response_time=_flt(item.get("mean_rt")),
-                    max_response_time=_flt(item.get("max_rt")),
-                    min_response_time=_flt(item.get("min_rt")),
-                    requests_per_second=_flt(item.get("mean_rps")),
+                    http_method=item.get(
+                        "method", "GET"
+                    ),  # Enhanced data may include method
+                    # Use correct field names from summary.json structure
+                    total_requests=int(
+                        item.get("total_requests") or item.get("total") or 0
+                    ),
+                    successful_requests=int(
+                        item.get("successful_requests") or item.get("ok") or 0
+                    ),
+                    failed_requests=int(
+                        item.get("failed_requests") or item.get("ko") or 0
+                    ),
+                    p50_response_time=_flt(
+                        item.get("p50_response_time") or item.get("p50")
+                    ),
+                    p75_response_time=_flt(
+                        item.get("p75_response_time") or item.get("p75")
+                    ),
+                    p95_response_time=_flt(
+                        item.get("p95_response_time") or item.get("p95")
+                    ),
+                    p99_response_time=_flt(
+                        item.get("p99_response_time") or item.get("p99")
+                    ),
+                    avg_response_time=_flt(
+                        item.get("avg_response_time") or item.get("mean_rt")
+                    ),
+                    max_response_time=_flt(
+                        item.get("max_response_time") or item.get("max_rt")
+                    ),
+                    min_response_time=_flt(
+                        item.get("min_response_time") or item.get("min_rt")
+                    ),
+                    requests_per_second=_flt(
+                        item.get("requests_per_second") or item.get("mean_rps")
+                    ),
                 )
-        except Exception:
+        except Exception as e:
+            # Log endpoint processing error for debugging
+            print(
+                f"Warning: Failed to persist endpoint results for {execution_id}: {e}"
+            )
+            # Continue processing rather than failing completely
             pass
