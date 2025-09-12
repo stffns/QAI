@@ -142,8 +142,8 @@ logs/
 database/_tmp_migrate_*.py
 database/_draft_migrate_*.py
 
-# Development and test files
-test_*.py
+# Development ad-hoc scripts at repo root (keep ignoring those only at root)
+/test_*.py
 calculation*.py
 sqrt_*.py
 demo_*.py
@@ -155,6 +155,9 @@ analisis_*.py
 configurar_*.py
 respuesta_*.py
 final_test_*.py
+
+# Allow committed test modules under tests/ (override root pattern)
+!tests/test_*.py
 
 # Performance testing temporary files
 tools/gatling/src/test/resources/endpoints_*.csv
