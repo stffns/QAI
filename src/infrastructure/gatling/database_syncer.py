@@ -52,10 +52,13 @@ class DatabaseStatusSyncer:
         status_store: InMemoryStatusStore,
         uow_factory: UnitOfWorkFactory,
         sync_interval: int = 5,
+        stuck_threshold_minutes: int = 10,
     ):
         self.status_store = status_store
         self.uow_factory = uow_factory
         self.sync_interval = sync_interval
+        # Minutes after which a PENDING execution absent in memory is considered stuck
+        self.stuck_threshold_minutes = stuck_threshold_minutes
         self.running = False
 
     def _map_status_to_db(self, memory_status: str) -> ExecutionStatus:
@@ -147,7 +150,7 @@ class DatabaseStatusSyncer:
                         age_minutes = (
                             datetime.utcnow() - db_execution.created_at
                         ).total_seconds() / 60
-                        if age_minutes > 10:  # Consider for processing after 10 minutes
+                        if age_minutes > self.stuck_threshold_minutes:
                             # Check if execution actually completed by looking for results
                             completed_status = self._check_execution_completion(
                                 execution_id

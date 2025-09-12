@@ -71,7 +71,21 @@ def build_default_service() -> PerformanceService:
 def _start_database_syncer(store: InMemoryStatusStore, uow_factory):
     """Start database syncer as background task"""
     try:
-        database_syncer = DatabaseStatusSyncer(store, uow_factory, sync_interval=5)
+        # Obtain optional configuration for sync interval / stuck threshold
+        try:
+            settings = get_settings()
+            sync_interval = getattr(settings.performance, "sync_interval", 5) if hasattr(settings, "performance") else 5
+            stuck_threshold = getattr(settings.performance, "stuck_threshold_minutes", 10) if hasattr(settings, "performance") else 10
+        except Exception:
+            sync_interval = 5
+            stuck_threshold = 10
+
+        database_syncer = DatabaseStatusSyncer(
+            store,
+            uow_factory,
+            sync_interval=sync_interval,
+            stuck_threshold_minutes=stuck_threshold,
+        )
         # Start background sync in a separate thread since we don't have an event loop
         import asyncio
         import threading

@@ -4,7 +4,13 @@ Exports all configuration models from their respective modules
 """
 
 # Core models
-from .core import DatabaseConfig, ModelConfig, ToolConfig, ToolsConfig
+from .core import (
+    DatabaseConfig,
+    ModelConfig,
+    ToolConfig,
+    ToolsConfig,
+    PerformanceConfig,
+)
 
 # Interface models
 from .interface import AppEnvironmentConfig, InterfaceConfig
@@ -30,6 +36,7 @@ __all__ = [
     "DatabaseConfig",
     "ToolConfig",
     "ToolsConfig",
+    "PerformanceConfig",
     # Interface
     "InterfaceConfig",
     "AppEnvironmentConfig",

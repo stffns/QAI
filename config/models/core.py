@@ -211,6 +211,8 @@ class ModelConfig(BaseModel):
         default=None, description="System instructions for guiding model behavior"
     )
 
+    # (Remaining validators and helpers below...)
+
     @field_validator("provider")
     @classmethod
     def validate_provider(cls, v: str) -> str:
@@ -787,6 +789,38 @@ class ReasoningConfig(BaseModel):
                 f"Invalid reasoning type: {v}. Must be one of {valid_types}"
             )
         return v
+
+    model_config = ConfigDict(
+        str_to_lower=True, extra="allow", validate_assignment=True
+    )
+
+
+class PerformanceConfig(BaseModel):
+    """Configuration for performance execution sync and stuck detection.
+
+    Environment:
+        PERF_SYNC_INTERVAL: seconds between sync cycles (default 5)
+        PERF_STUCK_THRESHOLD_MINUTES: minutes before marking a missing execution as stuck (default 10)
+    """
+
+    sync_interval: int = Field(
+        default_factory=lambda: int(os.environ.get("PERF_SYNC_INTERVAL", "5")),
+        ge=1,
+        description="Seconds between database sync cycles",
+    )
+    stuck_threshold_minutes: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("PERF_STUCK_THRESHOLD_MINUTES", "10")
+        ),
+        ge=1,
+        description="Minutes before a pending execution absent from memory is treated as stuck",
+    )
+
+    @field_validator("stuck_threshold_minutes")
+    @classmethod
+    def _min_threshold(cls, v: int) -> int:
+        # Avoid overly aggressive thresholds
+        return max(v, 2)
 
     model_config = ConfigDict(
         str_to_lower=True, extra="allow", validate_assignment=True

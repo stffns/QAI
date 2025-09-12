@@ -43,6 +43,7 @@ from .models import (
     LoggingConfig,
     ModelConfig,
     ToolsConfig,
+    PerformanceConfig,
 )
 
 
@@ -174,6 +175,7 @@ class Settings(BaseSettings):
     interface: InterfaceConfig = Field(default_factory=InterfaceConfig)
     app_environment: AppEnvironmentConfig = Field(default_factory=AppEnvironmentConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
 
     # Global settings
     config_file: Optional[str] = "agent_config.yaml"
@@ -217,6 +219,7 @@ class Settings(BaseSettings):
             "interface": "interface",
             "environment": "app_environment",  # Map YAML 'environment' to 'app_environment'
             "logging": "logging",
+            "performance": "performance",
         }
 
         for yaml_section, attr_name in section_mappings.items():
