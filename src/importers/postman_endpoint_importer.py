@@ -286,16 +286,17 @@ class PostmanEndpointImporter:
         }
 
     def _normalize_path(self, raw_path: str, env_vars: Dict[str, str]) -> str:
-        """Normalize path by replacing variables and path parameters."""
-        # Replace environment variables first
-        normalized = raw_path
-        for key, value in env_vars.items():
-            normalized = normalized.replace(f"{{{{{key}}}}}", f"{{{key}}}")
+        """Normalize path by replacing variables and path parameters to extract only the endpoint path.
         
-        # Replace :param with {param}
+        The base URL should be in the mapping table, so we need to extract only the path portion.
+        """
+        # Start with the raw path
+        normalized = raw_path
+        
+        # Step 1: Replace :param with {param} (Postman path parameters)
         normalized = PATH_VAR_PATTERN.sub(r"{\1}", normalized)
         
-        # Extract just the path part (remove protocol and domain)
+        # Step 2: Extract just the path part (remove protocol and domain/base URL)
         if "://" in normalized:
             try:
                 from urllib.parse import urlparse
@@ -308,9 +309,40 @@ class PostmanEndpointImporter:
                 parts = normalized.split('/', 3)
                 if len(parts) > 3:
                     normalized = '/' + parts[3]
+        else:
+            # Step 3: Remove base URL variables from the path ({{BASE_URL}}, {{baseUrl}}, etc.)
+            # Common base URL variable patterns to remove
+            base_url_patterns = [
+                r'\{\{BASE_URL\}\}',
+                r'\{\{baseUrl\}\}', 
+                r'\{\{base_url\}\}',
+                r'\{\{API_URL\}\}',
+                r'\{\{api_url\}\}',
+                r'\{\{HOST\}\}',
+                r'\{\{host\}\}'
+            ]
+            
+            for pattern in base_url_patterns:
+                normalized = re.sub(pattern, '', normalized, flags=re.IGNORECASE)
+            
+            # Clean up any double slashes or leading/trailing slashes after removing base URL
+            normalized = re.sub(r'/+', '/', normalized)  # Replace multiple slashes with single
+            normalized = normalized.strip('/')
         
-        # Ensure it starts with /
+        # Step 4: Convert remaining Postman variables {{var}} to {var} format
+        # This handles variables like {{userId}}, {{ENV}}, {{COUNTRY}} that are not base URLs
+        def replace_postman_var(match):
+            var_name = match.group(1)
+            return f"{{{var_name}}}"
+        
+        normalized = VARIABLE_PATTERN.sub(replace_postman_var, normalized)
+        
+        # Step 5: Ensure it starts with / (endpoint path format)
         if not normalized.startswith('/'):
             normalized = '/' + normalized
+            
+        # Handle empty paths
+        if normalized == '/':
+            normalized = '/default'
             
         return normalized
