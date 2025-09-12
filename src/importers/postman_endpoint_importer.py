@@ -20,6 +20,9 @@ from database.models.countries import Countries
 from database.models.application_endpoints import ApplicationEndpoint
 from database.models.app_environment_country_mappings import AppEnvironmentCountryMapping
 
+# Import the Postman Variables Manager
+from src.agent.tools.execution_variables_manager import ExecutionVariablesManager
+
 
 VARIABLE_PATTERN = re.compile(r"{{\s*([A-Za-z0-9_\-\.]+)\s*}}")
 PATH_VAR_PATTERN = re.compile(r":([A-Za-z0-9_]+)")
@@ -30,6 +33,7 @@ class PostmanEndpointImporter:
     
     def __init__(self, session: Session):
         self.session = session
+        self.postman_manager = ExecutionVariablesManager()
 
     def import_collection(
         self,
@@ -57,6 +61,7 @@ class PostmanEndpointImporter:
         
         # Load environment if provided
         env_vars = {}
+        env_data = None
         if environment_path and environment_path.exists():
             with open(environment_path, 'r', encoding='utf-8') as f:
                 env_data = json.load(f)
@@ -131,6 +136,11 @@ class PostmanEndpointImporter:
                 self.session.add(endpoint)
                 endpoints_created += 1
         
+        # Extract and update Postman variables
+        postman_vars_result = self.extract_and_update_execution_variables(
+            collection, env_data if environment_path else None, mapping.id
+        )
+        
         # Commit all changes
         self.session.commit()
         
@@ -141,7 +151,8 @@ class PostmanEndpointImporter:
             "mapping_id": mapping.id,
             "endpoints_created": endpoints_created,
             "endpoints_updated": endpoints_updated,
-            "total_endpoints": endpoints_created + endpoints_updated
+            "total_endpoints": endpoints_created + endpoints_updated,
+            "execution_variables": postman_vars_result
         }
 
     def _get_or_create_application(self, app_code: str) -> Optional[Apps]:
@@ -365,3 +376,112 @@ class PostmanEndpointImporter:
             normalized = '/default'
             
         return normalized
+
+    def extract_and_update_execution_variables(
+        self, 
+        collection_data: Dict[str, Any],
+        environment_data: Optional[Dict[str, Any]],
+        mapping_id: int
+    ) -> Dict[str, Any]:
+        """
+        Extract Postman variables from collection and environment, update mapping
+        
+        Args:
+            collection_data: Postman collection data
+            environment_data: Postman environment data (optional)
+            mapping_id: ID of the app_environment_country_mapping
+            
+        Returns:
+            Dict with extraction results
+        """
+        extracted_variables = {}
+        runtime_values = {}
+        
+        # Extract from collection variables
+        if 'variable' in collection_data:
+            for var in collection_data['variable']:
+                var_name = var.get('key', '')
+                var_value = var.get('value', '')
+                if var_name:
+                    extracted_variables[var_name] = f"{{{{{var_name}}}}}"
+                    if var_value:
+                        runtime_values[var_name] = var_value
+        
+        # Extract from environment variables  
+        if environment_data and 'values' in environment_data:
+            for var in environment_data['values']:
+                var_name = var.get('key', '')
+                var_value = var.get('value', '')
+                if var_name:
+                    extracted_variables[var_name] = f"{{{{{var_name}}}}}"
+                    if var_value:
+                        runtime_values[var_name] = var_value
+        
+        # Extract variables from collection items (URLs, headers, body)
+        def extract_from_items(items):
+            for item in items:
+                if isinstance(item, dict):
+                    if 'request' in item:
+                        # Extract from URL
+                        url = item['request'].get('url', '')
+                        if isinstance(url, dict):
+                            url = url.get('raw', '')
+                        self._extract_variables_from_text(str(url), extracted_variables)
+                        
+                        # Extract from headers
+                        headers = item['request'].get('header', [])
+                        for header in headers:
+                            if isinstance(header, dict):
+                                self._extract_variables_from_text(header.get('key', ''), extracted_variables)
+                                self._extract_variables_from_text(header.get('value', ''), extracted_variables)
+                        
+                        # Extract from body
+                        body = item['request'].get('body', {})
+                        if isinstance(body, dict):
+                            raw_body = body.get('raw', '')
+                            self._extract_variables_from_text(raw_body, extracted_variables)
+                    
+                    # Recursively check nested items (folders)
+                    if 'item' in item:
+                        extract_from_items(item['item'])
+        
+        if 'item' in collection_data:
+            extract_from_items(collection_data['item'])
+        
+        # Get the mapping to extract its details
+        mapping = self.session.get(AppEnvironmentCountryMapping, mapping_id)
+        if mapping:
+            # Update the mapping with extracted postman variables
+            success = self.postman_manager.initialize_execution_variables(
+                mapping.application_id,
+                mapping.environment_id, 
+                mapping.country_id,
+                extracted_variables
+            )
+            
+            if success and runtime_values:
+                # Update runtime values if we have them
+                self.postman_manager.update_runtime_values(
+                    mapping.application_id,
+                    mapping.environment_id,
+                    mapping.country_id,
+                    runtime_values
+                )
+        
+        return {
+            'variables_extracted': len(extracted_variables),
+            'runtime_values_set': len(runtime_values),
+            'variables': extracted_variables,
+            'runtime_values': runtime_values
+        }
+    
+    def _extract_variables_from_text(self, text: str, variables_dict: Dict[str, str]) -> None:
+        """Extract {{variable}} patterns from text and add to variables_dict"""
+        if not text:
+            return
+            
+        matches = VARIABLE_PATTERN.findall(text)
+        for var_name in matches:
+            # Skip infrastructure variables that we normalize away
+            if var_name.upper() not in ['ENV', 'ENVIRONMENT', 'COUNTRY', 'REGION', 'BASE_URL', 'BASEURL', 'API_URL', 'HOST']:
+                variables_dict[var_name] = f"{{{{{var_name}}}}}"
