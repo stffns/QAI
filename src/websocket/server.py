@@ -20,7 +20,10 @@ import asyncio
 import json
 import logging
 import traceback
-from contextlib import asynccontextmanager
+import base64
+import os
+from pathlib import Path
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, Optional, Set
 
@@ -134,14 +137,27 @@ class WebSocketServer:
             "messages_sent": 0,
             "messages_received": 0,
             "errors_total": 0,
+            "invalid_handshakes": 0,
             "start_time": None,
         }
 
         self.logger = get_logger("WebSocketServer")
+        # Cleanup settings
+        self.upload_retention_seconds = 6 * 3600  # 6 hours
+        self._cleanup_task: Optional[asyncio.Task] = None
 
         # Suppress routine websockets library errors to reduce noise
-        logging.getLogger("websockets.server").setLevel(logging.WARNING)
+        ws_server_logger = logging.getLogger("websockets.server")
+        ws_server_logger.setLevel(logging.WARNING)
         logging.getLogger("websockets.protocol").setLevel(logging.WARNING)
+
+        class _IgnoreInvalidHandshake(logging.Filter):  # local lightweight filter
+            def filter(self, record):
+                msg = record.getMessage().lower()
+                # Suppress common noise for empty TCP connects / port scans
+                return "did not receive a valid http request" not in msg
+
+        ws_server_logger.addFilter(_IgnoreInvalidHandshake())
         self.logger.info("WebSocket server initialized with configuration")
 
     async def start(self) -> None:
@@ -184,6 +200,9 @@ class WebSocketServer:
                 # Start metrics collection if enabled
                 if self.config.enable_metrics:
                     asyncio.create_task(self._metrics_collector())
+
+                # Start uploads cleanup task
+                self._cleanup_task = asyncio.create_task(self._cleanup_uploads_loop())
 
         except Exception as e:
             self.logger.error(f"Failed to start WebSocket server: {e}")
@@ -229,6 +248,14 @@ class WebSocketServer:
                 self.user_sessions.clear()
 
                 self.logger.info("WebSocket server stopped successfully")
+                # Stop cleanup task
+                try:
+                    if self._cleanup_task:
+                        self._cleanup_task.cancel()
+                        with suppress(Exception):
+                            await self._cleanup_task
+                except Exception:
+                    pass
 
         except Exception as e:
             self.logger.error(f"Error during server shutdown: {e}")
@@ -461,24 +488,39 @@ class WebSocketServer:
             # Parse message as WebSocket envelope
             envelope = parse_websocket_envelope(message_data)
 
-            with LogStep(f"Processing {envelope.type} envelope", "WebSocketServer"):
+            # Apply middleware processing (version validation, etc.)
+            # Note: Type casting for websockets compatibility between versions
+            self.logger.debug(f"Processing envelope version: {envelope.version}")
+            processed_envelope = await self.middleware.process_envelope(
+                websocket, envelope, session_id, user_id  # type: ignore
+            )
+            
+            if processed_envelope is None:
+                # Middleware rejected the envelope (e.g., unsupported version)
+                self.logger.warning(f"Middleware rejected envelope with version: {envelope.version}")
+                await self._send_error(
+                    websocket, "middleware_rejected", f"Message rejected by middleware (version: {envelope.version})"
+                )
+                return
 
-                if envelope.is_chat_message():
+            with LogStep(f"Processing {processed_envelope.type} envelope", "WebSocketServer"):
+
+                if processed_envelope.is_chat_message():
                     await self._handle_chat_message(
-                        websocket, envelope, session_id, user_id
+                        websocket, processed_envelope, session_id, user_id
                     )
 
-                elif envelope.type == "system_event":
+                elif processed_envelope.type == "system_event":
                     await self._handle_system_event(
-                        websocket, envelope, session_id, user_id
+                        websocket, processed_envelope, session_id, user_id
                     )
 
                 else:
-                    self.logger.warning(f"Unknown envelope type: {envelope.type}")
+                    self.logger.warning(f"Unknown envelope type: {processed_envelope.type}")
                     await self._send_error(
                         websocket,
                         "unknown_event",
-                        f"Unknown envelope type: {envelope.type}",
+                        f"Unknown envelope type: {processed_envelope.type}",
                     )
 
         except ValidationError as e:
@@ -522,6 +564,28 @@ class WebSocketServer:
                 chat_payload = chat_envelope.payload
                 if not isinstance(chat_payload, ChatMessagePayload):
                     raise ValueError("Expected ChatMessagePayload")
+
+                # First: process attachments (Postman collection/env import) before normal chat flow
+                try:
+                    handled, chain_after = await self._process_postman_attachments(
+                        chat_payload, session_id, user_id, websocket, chat_envelope
+                    )
+                    if handled and not chain_after:
+                        # Already responded; no further agent processing
+                        return
+                    # If handled and chain_after True, continue with updated chat_payload.content
+                except Exception as attach_err:  # pragma: no cover - defensive
+                    self.logger.error(f"Attachment processing failed: {attach_err}")
+                    error_envelope = WebSocketEnvelopeFactory.create_error_event(
+                        error_code="attachment_processing_error",
+                        error_message="Failed to process attachments",
+                        session_id=session_id,
+                        user_id=user_id,
+                        correlation_id=chat_envelope.id,
+                        details=str(attach_err),
+                    )
+                    await self._send_event(websocket, error_envelope)
+                    return
 
                 # Check if streaming is available and process accordingly
                 if self._manager_supports_streaming():
@@ -853,6 +917,362 @@ class WebSocketServer:
             "active_connections": len(self.connections),
             "metrics": self.metrics.copy(),
         }
+
+    # process_request hook removed (type mismatch in current websockets version); using logger filter instead
+
+    async def _cleanup_uploads_loop(self) -> None:
+        """Periodic cleanup of old websocket upload temp files."""
+        from datetime import datetime, timezone
+
+        base_dir = Path("temp/websocket_uploads")
+        while self.is_running:
+            try:
+                await asyncio.sleep(1800)  # Every 30 minutes
+                if not base_dir.exists():
+                    continue
+                cutoff = datetime.now(timezone.utc).timestamp() - self.upload_retention_seconds
+                removed = 0
+                for child in base_dir.iterdir():
+                    try:
+                        if child.is_dir():
+                            # Use latest mtime among files inside
+                            mt = max((p.stat().st_mtime for p in child.glob("**/*") if p.exists()), default=child.stat().st_mtime)
+                        else:
+                            mt = child.stat().st_mtime
+                        if mt < cutoff:
+                            if child.is_dir():
+                                for p in child.glob("**/*"):
+                                    with suppress(Exception):
+                                        p.unlink()
+                                with suppress(Exception):
+                                    child.rmdir()
+                            else:
+                                with suppress(Exception):
+                                    child.unlink()
+                            removed += 1
+                    except Exception:
+                        continue
+                if removed:
+                    self.logger.info(
+                        f"Upload cleanup removed {removed} expired session dirs/files",
+                        extra={"retention_seconds": self.upload_retention_seconds},
+                    )
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.logger.debug(f"Upload cleanup error: {e}")
+
+    async def _process_postman_attachments(
+        self,
+        chat_payload,
+        session_id: str,
+        user_id: str,
+        websocket: ServerConnection,
+        chat_envelope: WebSocketEnvelope,
+    ) -> tuple[bool, bool]:
+        """Detect and optionally import Postman collection/environment from attachments.
+
+        Returns:
+            (handled, chain_after)
+            handled: An attachment (collection) was detected and processed (staged or imported)
+            chain_after: After handling, continue with agent chat (True) or stop (False)
+        """
+        attachments = getattr(chat_payload, "attachments", None) or []
+        if not attachments:
+            return False, False
+
+        # Always create session dir and persist ALL attachments (any type) so the agent can decide.
+        base_temp = Path("temp/websocket_uploads")
+        base_temp.mkdir(parents=True, exist_ok=True)
+        session_dir = base_temp / session_id
+        session_dir.mkdir(exist_ok=True)
+
+        saved_paths: list[str] = []
+        collection_attachment = None
+        environment_attachment = None
+        inspected = 0
+        skipped_reasons: list[str] = []
+
+        for att in attachments:
+            if not isinstance(att, dict):
+                skipped_reasons.append("attachment_not_dict")
+                continue
+            name = att.get("filename") or att.get("name") or f"attachment_{inspected}"
+            data_b64 = att.get("content") or att.get("data")
+            if not data_b64:
+                skipped_reasons.append(f"{name}:missing_data")
+                continue
+            lowered = name.lower()
+            raw_bytes = None
+            text_sample = ""
+            is_json_like = False
+            try:
+                raw_bytes = base64.b64decode(data_b64)
+                # Persist file (binary or text) unconditionally
+                safe_name = name.replace("/", "_")
+                path = session_dir / safe_name
+                path.write_bytes(raw_bytes)
+                saved_paths.append(str(path))
+                # Prepare JSON heuristic
+                text_sample = raw_bytes.decode("utf-8", errors="ignore")[:10000]
+                is_json_like = text_sample.strip().startswith("{")
+            except Exception:
+                skipped_reasons.append(f"{name}:b64_decode_or_write_error")
+                continue
+
+            json_obj = None
+            if is_json_like:
+                try:
+                    json_obj = json.loads(text_sample)
+                except Exception:
+                    skipped_reasons.append(f"{name}:json_parse_error")
+            inspected += 1
+
+            if json_obj is not None and collection_attachment is None and (
+                lowered.endswith(".postman_collection.json") or ("info" in json_obj and "item" in json_obj)
+            ):
+                collection_attachment = {"name": name, "path": path, "json": json_obj}
+            elif json_obj is not None and environment_attachment is None and (
+                lowered.endswith(".postman_environment.json")
+                or ("values" in json_obj and "id" in json_obj and "name" in json_obj)
+            ):
+                environment_attachment = {"name": name, "path": path, "json": json_obj}
+            else:
+                skipped_reasons.append(f"{name}:no_postman_signature")
+
+        # Enrich metadata with all saved attachment paths so agent ALWAYS can inspect
+        try:
+            if chat_payload.metadata is None:
+                chat_payload.metadata = {}
+            chat_payload.metadata.setdefault("attachments_paths", saved_paths)
+        except Exception:
+            pass
+
+        # Append hint lines to content (bounded)
+        try:
+            hint_lines = ["[ATTACHMENTS] Saved files:"] + [p for p in saved_paths]
+            suffix = "\n" + "\n".join(hint_lines)
+            if len(chat_payload.content) + len(suffix) < 9500:
+                chat_payload.content += suffix
+        except Exception:
+            pass
+
+        # If no collection detected, emit diagnostic event but STILL stage attachments for agent
+        if not collection_attachment:
+            try:
+                diag_event = WebSocketEnvelopeFactory.create_system_event(
+                    event_name="postman_attachment_unrecognized",
+                    data={
+                        "attachments_count": len(attachments),
+                        "saved": len(saved_paths),
+                        "inspected": inspected,
+                        "reasons": skipped_reasons[:20],
+                    },
+                    session_id=session_id,
+                    user_id=user_id,
+                    correlation_id=chat_envelope.id,
+                )
+                await self._send_event(websocket, diag_event)
+            except Exception:
+                pass
+            self.logger.info(
+                "Attachments saved (no Postman collection detected)",
+                extra={
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "attachments_count": len(attachments),
+                    "saved_paths": saved_paths[:10],
+                },
+            )
+            # handled=True (we processed attachments), chain_after=True to continue normal chat
+            return True, True
+
+        # Prepare temp directory for this session
+        # Already saved; just reuse paths
+        collection_path = collection_attachment["path"] if collection_attachment else None
+        environment_path = environment_attachment["path"] if environment_attachment else None
+
+        # Extract optional mapping_id from metadata
+        mapping_id = None
+        try:
+            if chat_payload.metadata and isinstance(chat_payload.metadata, dict):
+                mapping_id = chat_payload.metadata.get("mapping_id")
+        except Exception:
+            mapping_id = None
+
+        # Decide import strategy based on metadata flag (default: agent decides, no auto import)
+        auto_import = False
+        try:
+            if chat_payload.metadata and isinstance(chat_payload.metadata, dict):
+                flag = chat_payload.metadata.get("postman_auto_import")
+                auto_import = bool(flag) is True and flag is True
+        except Exception:
+            auto_import = False
+
+        # Chaining flag (if agent should proceed after auto import or staging)
+        chain_after = False
+        try:
+            if chat_payload.metadata and isinstance(chat_payload.metadata, dict):
+                chain_after = bool(chat_payload.metadata.get("postman_chain"))
+        except Exception:
+            chain_after = False
+
+        if not auto_import:
+            # Make collection & environment paths visible to the agent by augmenting content & metadata
+            path_lines = [
+                "[POSTMAN] Collection staged:",
+                f"collection_path={collection_path}",
+            ]
+            if environment_path:
+                path_lines.append(f"environment_path={environment_path}")
+            path_lines.append(
+                "Agent: You may choose to import using the postman_import tool if appropriate."
+            )
+
+            # Extend content (avoid excessive growth)
+            try:
+                new_suffix = "\n" + "\n".join(path_lines)
+                if len(chat_payload.content) + len(new_suffix) < 9500:  # keep under limit
+                    chat_payload.content += new_suffix
+                else:  # fallback minimal hint
+                    chat_payload.content += "\n[ATTACHMENT] Postman collection saved. Use postman_import tool."
+            except Exception:
+                pass
+
+            # Enrich metadata with paths for structured access
+            try:
+                if chat_payload.metadata is None:
+                    chat_payload.metadata = {}
+                chat_payload.metadata.update(
+                    {
+                        "postman_collection_path": str(collection_path),
+                        "postman_environment_path": str(environment_path)
+                        if environment_path
+                        else None,
+                        "postman_auto_import": False,
+                    }
+                )
+            except Exception:
+                pass
+
+            self.logger.info(
+                "Postman attachment staged (no auto import)",
+                extra={
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "collection_path": str(collection_path),
+                    "environment_path": str(environment_path)
+                    if environment_path
+                    else None,
+                },
+            )
+            # Return False so normal chat processing continues (agent will decide)
+            return True, True  # Staged; always chain so agent can decide
+
+        # Auto-import branch
+        # Emit progress event: start
+        try:
+            start_event = WebSocketEnvelopeFactory.create_system_event(
+                event_name="postman_import_start",
+                data={
+                    "collection_path": str(collection_path),
+                    "environment_path": str(environment_path)
+                    if environment_path
+                    else None,
+                    "mapping_id": mapping_id,
+                },
+                session_id=session_id,
+                user_id=user_id,
+                correlation_id=chat_envelope.id,
+            )
+            await self._send_event(websocket, start_event)
+        except Exception:
+            pass
+
+        try:
+            from src.agent.tools.postman_tools import postman_import as postman_import_tool
+
+            import_result = postman_import_tool(
+                collection_path=str(collection_path),
+                environment_path=str(environment_path) if environment_path else None,
+                mapping_id=mapping_id,
+                store_raw=True,
+            )
+        except Exception as e:
+            self.logger.error(f"Postman import failed: {e}")
+            error_envelope = WebSocketEnvelopeFactory.create_error_event(
+                error_code="postman_import_failed",
+                error_message="Postman collection import failed",
+                session_id=session_id,
+                user_id=user_id,
+                correlation_id=chat_envelope.id,
+                details=str(e),
+            )
+            await self._send_event(websocket, error_envelope)
+            return True, False
+
+        if isinstance(import_result, dict) and import_result.get("error"):
+            error_envelope = WebSocketEnvelopeFactory.create_error_event(
+                error_code="postman_import_error",
+                error_message=import_result.get("error", "Import error"),
+                session_id=session_id,
+                user_id=user_id,
+                correlation_id=chat_envelope.id,
+                details=json.dumps(import_result),
+            )
+            await self._send_event(websocket, error_envelope)
+            return True, False
+
+        summary_parts = [
+            "Postman collection imported successfully.",
+            f"Collection ID: {import_result.get('collection_id')}",
+            f"Reused: {import_result.get('reused')}",
+            f"Requests: {import_result.get('requests')}",
+            f"Unresolved Requests: {import_result.get('unresolved_requests')}",
+            f"Linked Endpoints: {import_result.get('linked_endpoints')}",
+        ]
+        if mapping_id is not None:
+            summary_parts.append(f"Mapping ID: {mapping_id}")
+        content = "\n".join(summary_parts)
+
+        response_envelope = WebSocketEnvelopeFactory.create_agent_response(
+            content=content,
+            session_id=session_id,
+            user_id=user_id,
+            correlation_id=chat_envelope.id,
+            response_type="postman_import_summary",
+            tools_used=["postman_import"],
+        )
+        await self._send_event(websocket, response_envelope)
+
+        # Emit completion event
+        try:
+            complete_event = WebSocketEnvelopeFactory.create_system_event(
+                event_name="postman_import_complete",
+                data={
+                    **{k: v for k, v in import_result.items() if isinstance(import_result, dict)},
+                    "collection_path": str(collection_path),
+                    "environment_path": str(environment_path)
+                    if environment_path
+                    else None,
+                },
+                session_id=session_id,
+                user_id=user_id,
+                correlation_id=chat_envelope.id,
+            )
+            await self._send_event(websocket, complete_event)
+        except Exception:
+            pass
+        self.logger.info(
+            "Postman collection imported via WebSocket attachments (auto)",
+            extra={
+                "session_id": session_id,
+                "user_id": user_id,
+                "collection_path": str(collection_path),
+                "environment_path": str(environment_path) if environment_path else None,
+            },
+        )
+        return True, chain_after
 
 
 @asynccontextmanager

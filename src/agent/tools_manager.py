@@ -309,6 +309,12 @@ class ToolsManager:
                 essential=False,
                 config={},
             ),
+            "postman_import": ToolConfig(
+                name="postman_import",
+                enabled=enabled_tool_names.get("postman_import", True),
+                essential=False,
+                config={},
+            ),
         }
 
         for tool_name, default_config in default_tools.items():
@@ -430,6 +436,8 @@ class ToolsManager:
                 "perf_get_metrics",
             ]:
                 tool = self._load_perf_tool(tool_config)
+            elif tool_config.name == "postman_import":
+                tool = self._load_postman_tool(tool_config)
             else:
                 raise ToolLoadError(f"Unknown tool: {tool_config.name}")
 
@@ -823,3 +831,15 @@ class ToolsManager:
                 health_report["overall_healthy"] = False
 
         return health_report
+
+    def _load_postman_tool(self, tool_config: ToolConfig) -> Any:
+        """Load Postman import tool."""
+        try:
+            import os, sys
+            project_root = os.path.join(os.path.dirname(__file__), "..", "..")
+            if project_root not in sys.path:
+                sys.path.append(project_root)
+            from src.agent.tools.postman_tools import postman_import
+            return postman_import
+        except ImportError as e:
+            raise ToolLoadError(f"Postman import tool not available: {e}")

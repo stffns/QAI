@@ -123,7 +123,7 @@ class Apps(SQLModel, table=True):
     
     # Relationships
     country_mappings: List["AppEnvironmentCountryMapping"] = Relationship(back_populates="application")
-    endpoints: List["ApplicationEndpoint"] = Relationship(back_populates="application")
+    # endpoints: List["ApplicationEndpoint"] = Relationship(back_populates="application")  # Disabled - now uses mapping_id
     
     # === VALIDACIONES PYDANTIC (MATCHING DATABASE CONSTRAINTS) ===
     

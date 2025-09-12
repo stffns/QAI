@@ -10,3 +10,6 @@ ddgs
 sqlalchemy
 prometheus-client
 beautifulsoup4
+
+# Real-time WebSocket server dependency (server.py uses websockets.ServerConnection)
+websockets>=15.0.1,<16.0.0

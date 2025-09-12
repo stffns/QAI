@@ -86,61 +86,22 @@ class AuditMixin(SQLModel):
 
 class Role(TimestampMixin, AuditMixin, table=True):
     """
-    Modelo de roles con soporte para jerarquías.
+    Modelo de roles del sistema con soporte para jerarquías.
     
-    Características:
-    - Jerarquía de roles (parent_role_id)
-    - Roles de sistema vs customizables
-    - Prioridad para resolución de conflictos
+    Features:
+    - Jerarquía de roles (parent/child)
+    - Roles de sistema no editables  
+    - Prioridades para resolución de conflictos
+    - Validación de nombres
     """
+    __tablename__ = "roles"
     
-    # Explicit table name for clarity / FK alignment
-    __tablename__ = "roles"  # type: ignore[assignment]
-
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=50, unique=True, index=True)
     description: Optional[str] = Field(default=None, max_length=255)
     
     # Jerarquía
-    parent_role_id: Optional[int] = Field(default=None, foreign_key="role.id")
-    priority: int = Field(default=0, description="Prioridad para resolución de conflictos")
-    
-    # Sistema
-    is_system_role: bool = Field(default=False, description="Rol del sistema, no editable")
-    is_active: bool = Field(default=True)
-    
-    # Relaciones
-    parent_role: Optional["Role"] = Relationship(
-        back_populates="child_roles",
-        sa_relationship_kwargs={"remote_side": "Role.id"}
-    )
-    child_roles: List["Role"] = Relationship(back_populates="parent_role")
-    
-    # Usuarios y permisos
-    user_roles: List["UserRole"] = Relationship(back_populates="role")
-    role_permissions: List["RolePermission"] = Relationship(back_populates="role")
-    
-    @validator('name')
-    def validate_name(cls, v):
-        if not v or len(v.strip()) == 0:
-            raise ValueError("El nombre del rol no puede estar vacío")
-        return v.strip().upper()
-    
-    def get_effective_permissions(self, include_inherited: bool = True) -> List["Permission"]:
-        """Obtener permisos efectivos incluyendo herencia."""
-        permissions = []
-        
-        # Permisos directos
-        for rp in self.role_permissions:
-            if rp.is_active:
-                permissions.append(rp.permission)
-        
-        # Permisos heredados
-        if include_inherited and self.parent_role:
-            permissions.extend(self.parent_role.get_effective_permissions())
-        
-        # Eliminar duplicados
-        return list(set(permissions))
+    parent_role_id: Optional[int] = Field(default=None, foreign_key="roles.id")
 
 
 class Permission(TimestampMixin, AuditMixin, table=True):
@@ -169,9 +130,9 @@ class Permission(TimestampMixin, AuditMixin, table=True):
     is_system_permission: bool = Field(default=False, description="Permiso del sistema, no editable")
     is_active: bool = Field(default=True)
     
-    # Relaciones
-    role_permissions: List["RolePermission"] = Relationship(back_populates="permission")
-    user_permissions: List["UserPermission"] = Relationship(back_populates="permission")
+    # Relaciones (disabled to avoid circular imports for now)
+    # role_permissions: List["RolePermission"] = Relationship(back_populates="permission")
+    # user_permissions: List["UserPermission"] = Relationship(back_populates="permission")
     
     @validator('name')
     def validate_name(cls, v):
