@@ -6,7 +6,7 @@ Modular version with specialized classes and improved architecture
 
 import sys
 from abc import ABC, abstractmethod
-from typing import Any, Protocol, Union, Callable, Sequence
+from typing import Any, Callable, Protocol, Sequence, Union
 
 from agno.agent import Agent
 from agno.memory.v2.memory import Memory
@@ -22,34 +22,39 @@ except ImportError:
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
     from config import get_settings
 
+from .agent_builder import AgentBuilder
 from .chat_interface import ChatInterface
+from .error_recovery import (
+    RecoveryConfig,
+    RecoveryStrategy,
+    global_recovery_manager,
+    with_recovery,
+)
 from .model_manager import ModelManager
 from .storage_manager import StorageManager
 from .tools_manager import ToolsManager
-from .agent_builder import AgentBuilder
-from .error_recovery import global_recovery_manager, with_recovery, RecoveryConfig, RecoveryStrategy
 
 # Configure Loguru logging
 try:
     from ..logging_config import (
-        get_logger,
-        get_performance_logger,
         LogExecutionTime,
         LogStep,
+        get_logger,
+        get_performance_logger,
         log_agent_event,
         setup_qa_logging,
     )
 except ImportError:
     # Fallback for relative imports
-    import sys
     import os
+    import sys
 
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
     from logging_config import (
-        get_logger,
-        get_performance_logger,
         LogExecutionTime,
         LogStep,
+        get_logger,
+        get_performance_logger,
         log_agent_event,
         setup_qa_logging,
     )
@@ -61,7 +66,7 @@ perf_logger = get_performance_logger()
 
 class ConfigValidator(Protocol):
     """Protocol for configuration validation"""
-    
+
     # Config attributes
     tools: Any  # ToolsConfig object with get_enabled_tools() method
 
@@ -293,9 +298,17 @@ class QAAgent:
             has_run_method = hasattr(tool, "run") and callable(getattr(tool, "run"))
             is_dict_like = isinstance(tool, dict)
             has_functions = hasattr(tool, "functions")  # agno tools have this
-            is_agno_function = hasattr(tool, "entrypoint") and callable(getattr(tool, "entrypoint"))  # agno Function objects
+            is_agno_function = hasattr(tool, "entrypoint") and callable(
+                getattr(tool, "entrypoint")
+            )  # agno Function objects
 
-            if not (is_callable or has_run_method or is_dict_like or has_functions or is_agno_function):
+            if not (
+                is_callable
+                or has_run_method
+                or is_dict_like
+                or has_functions
+                or is_agno_function
+            ):
                 invalid_tools.append(
                     f"Tool {i}: not callable, no 'run' method, not dict-like, no 'functions' attribute, and no callable 'entrypoint' ({type(tool).__name__})"
                 )
@@ -432,7 +445,7 @@ class QAAgent:
             # Get streaming configuration from model config
             model_config = self.config.get_model_config()
             stream_enabled = model_config.get("stream", False)
-            
+
             agent = Agent(
                 model=model,
                 instructions=instructions,
@@ -462,49 +475,43 @@ class QAAgent:
     def create_with_builder(cls, config: ConfigValidator | None = None) -> "QAAgent":
         """
         Create QA Agent using the Builder pattern (recommended for complex configurations)
-        
+
         Args:
             config: Configuration object
-            
+
         Returns:
             QAAgent: Configured QA Agent instance
-            
+
         Example:
             qa_agent = QAAgent.create_with_builder(config)
         """
         config = config or get_settings()
-        
+
         with LogExecutionTime("QA Agent creation with Builder", "QAAgent"):
             logger.info("Creating QA Agent using Builder pattern...")
-            
+
             try:
                 # Use Builder pattern for enhanced configuration
                 builder = AgentBuilder(config)
-                agent_instance = (builder
-                                .auto_configure()
-                                .validate()
-                                .build())
-                
+                agent_instance = builder.auto_configure().validate().build()
+
                 # Create QA Agent wrapper
                 qa_agent = cls.__new__(cls)
                 qa_agent.config = config
                 qa_agent.agent = agent_instance
-                
+
                 # Initialize managers for info purposes (they were used by builder)
                 qa_agent.model_manager = builder.model_manager
-                qa_agent.tools_manager = builder.tools_manager  
+                qa_agent.tools_manager = builder.tools_manager
                 qa_agent.storage_manager = builder.storage_manager
-                
+
                 logger.success("QA Agent created successfully using Builder pattern")
-                
+
                 # Log completion event
-                log_agent_event(
-                    "builder_creation_completed",
-                    builder.get_build_info()
-                )
-                
+                log_agent_event("builder_creation_completed", builder.get_build_info())
+
                 return qa_agent
-                
+
             except Exception as e:
                 logger.error(f"Failed to create QA Agent with Builder: {e}")
                 raise AgentCreationError(f"Builder creation failed: {e}") from e

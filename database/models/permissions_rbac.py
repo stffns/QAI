@@ -94,6 +94,9 @@ class Role(TimestampMixin, AuditMixin, table=True):
     - Prioridad para resolución de conflictos
     """
     
+    # Explicit table name for clarity / FK alignment
+    __tablename__ = "roles"  # type: ignore[assignment]
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=50, unique=True, index=True)
     description: Optional[str] = Field(default=None, max_length=255)
@@ -150,6 +153,8 @@ class Permission(TimestampMixin, AuditMixin, table=True):
     - Scopes para filtrado adicional
     """
     
+    __tablename__ = "permissions"  # type: ignore[assignment]
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100, unique=True, index=True)
     description: Optional[str] = Field(default=None, max_length=255)
@@ -196,6 +201,8 @@ if TYPE_CHECKING:
 
 class UserRole(TimestampMixin, table=True):
     """Relación many-to-many entre usuarios y roles."""
+
+    __tablename__ = "user_roles"  # type: ignore[assignment]
     
     user_id: int = Field(foreign_key="users.id", primary_key=True)
     role_id: int = Field(foreign_key="roles.id", primary_key=True)
@@ -220,6 +227,8 @@ class RolePermission(TimestampMixin, table=True):
     Relación many-to-many entre roles y permisos.
     Esta es la tabla clave para RBAC completo.
     """
+
+    __tablename__ = "role_permissions"  # type: ignore[assignment]
     
     id: Optional[int] = Field(default=None, primary_key=True)
     role_id: int = Field(foreign_key="roles.id", index=True)
@@ -240,6 +249,8 @@ class UserPermission(TimestampMixin, table=True):
     Permisos directos de usuario (excepciones al RBAC).
     Solo para casos especiales donde se requiere permiso específico.
     """
+
+    __tablename__ = "user_permissions"  # type: ignore[assignment]
     
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
@@ -281,6 +292,8 @@ class AuditLog(TimestampMixin, table=True):
     """
     Log de auditoría para cambios en permisos y roles.
     """
+
+    __tablename__ = "audit_logs_rbac"  # type: ignore[assignment]
     
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: Optional[int] = Field(default=None, foreign_key="users.id")

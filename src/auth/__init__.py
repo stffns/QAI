@@ -8,11 +8,9 @@ and various authentication methods and middleware for securing the QA workflows.
 
 # Import modern consolidated OAuth models
 try:
-    from database.models.oauth import (
-        OAuthUsers as OAuthUser,
-        OAuthAppClients as OAuthApplication,
-        OAuthJWKs as OAuthJWK,
-    )
+    from database.models.oauth import OAuthAppClients as OAuthApplication
+    from database.models.oauth import OAuthJWKs as OAuthJWK
+    from database.models.oauth import OAuthUsers as OAuthUser
 except ImportError:  # pragma: no cover
     OAuthUser = OAuthApplication = OAuthJWK = None  # type: ignore
 
@@ -27,10 +25,10 @@ TokenType = None
 
 try:
     from .services.oauth_service import (
-        OAuthTokenService,
+        OAuthConfig,
         OAuthConfigService,
         OAuthServiceFactory,
-        OAuthConfig,
+        OAuthTokenService,
     )
 except ImportError:
     # Services might not be available if dependencies are missing
@@ -41,6 +39,6 @@ __version__ = "1.0.0"
 __all__ = [
     # Models
     "OAuthUser",
-    "OAuthApplication", 
+    "OAuthApplication",
     "OAuthJWK",
 ]

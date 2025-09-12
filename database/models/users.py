@@ -16,20 +16,19 @@ from pydantic import field_validator
 from ..base import BaseModel, register_timestamp_listeners
 
 
-class UserRole(str, Enum):
+class UserRoleEnum(str, Enum):
     ADMIN = "admin"
     ANALYST = "analyst"
     VIEWER = "viewer"
     OPERATOR = "operator"
 
 
-if TYPE_CHECKING:
-    # Forward references for RBAC relationship models (defined in permissions_rbac.py)
-    from .permissions_rbac import UserRole as RbacUserRole  # type: ignore
-    from .permissions_rbac import UserPermission as RbacUserPermission  # type: ignore
-    from .permissions_rbac import RolePermission as RbacRolePermission  # noqa
-    from .permissions_rbac import Role as RbacRole  # noqa
-    from .permissions_rbac import AuditLog as RbacAuditLog  # noqa
+try:  # pragma: no cover
+    from .permissions_rbac import UserRole as UserRole  # relationship model
+    from .permissions_rbac import UserPermission as UserPermission  # relationship model
+    from .permissions_rbac import AuditLog as AuditLogRbac  # relationship model
+except Exception:  # pragma: no cover
+    UserRole = UserPermission = AuditLogRbac = None  # type: ignore
 
 
 class User(BaseModel, table=True):
@@ -73,8 +72,8 @@ class User(BaseModel, table=True):
     )
 
     # Simple coarse role (legacy) alongside RBAC roles system
-    role: UserRole = Field(
-        default=UserRole.VIEWER,
+    role: UserRoleEnum = Field(
+        default=UserRoleEnum.VIEWER,
         description="Coarse legacy role classification (RBAC handles fine-grained)",
     )
 
@@ -119,9 +118,13 @@ class User(BaseModel, table=True):
     language: Optional[str] = Field(default="es", max_length=10, description="Preferred language code")
 
     # RBAC relationships (defined if RBAC module loaded)
-    user_roles: List["RbacUserRole"] = Relationship(back_populates="user")  # type: ignore
-    user_permissions: List["RbacUserPermission"] = Relationship(back_populates="user")  # type: ignore
-    audit_logs: List["RbacAuditLog"] = Relationship(back_populates="user")  # type: ignore
+    # Relaciones RBAC (solo si los modelos están disponibles)
+    if UserRole is not None:
+        user_roles: List["UserRole"] = Relationship(back_populates="user")  # type: ignore
+    if UserPermission is not None:
+        user_permissions: List["UserPermission"] = Relationship(back_populates="user")  # type: ignore
+    if AuditLogRbac is not None:
+        audit_logs: List["AuditLogRbac"] = Relationship(back_populates="user")  # type: ignore
 
     # -------- Métodos de estado (UTC-aware) --------
 

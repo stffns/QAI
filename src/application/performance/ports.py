@@ -14,5 +14,4 @@ class RunnerPort(Protocol):
 
 
 class StatusReaderPort(Protocol):
-    def get_status(self, execution_id: str) -> RunStatus:
-        ...
+    def get_status(self, execution_id: str) -> RunStatus: ...

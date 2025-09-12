@@ -6,47 +6,50 @@ Sigue los principios SOLID del proyecto
 
 from __future__ import annotations
 
-from typing import Optional, List, Dict, Any
 from datetime import datetime
-from sqlmodel import Session, select
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session, select
 
 try:
     from database.repositories.base import BaseRepository
     from database.repositories.exceptions import (
+        DuplicateEntityError,
         EntityNotFoundError,
         InvalidEntityError,
-        DuplicateEntityError,
     )
+
     from ..models.oauth_models import (
-        OAuthCountry,
-        OAuthUser,
         OAuthApplication,
-        OAuthJWK,
-        OAuthEnvironmentConfig,
-        OAuthToken,
+        OAuthCountry,
         OAuthEnvironment,
+        OAuthEnvironmentConfig,
+        OAuthJWK,
         OAuthProduct,
+        OAuthToken,
+        OAuthUser,
     )
 except ImportError:
-    import sys
     import os
+    import sys
+
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
     from database.repositories.base import BaseRepository
     from database.repositories.exceptions import (
+        DuplicateEntityError,
         EntityNotFoundError,
         InvalidEntityError,
-        DuplicateEntityError,
     )
     from src.auth.models.oauth_models import (
-        OAuthCountry,
-        OAuthUser,
         OAuthApplication,
-        OAuthJWK,
-        OAuthEnvironmentConfig,
-        OAuthToken,
+        OAuthCountry,
         OAuthEnvironment,
+        OAuthEnvironmentConfig,
+        OAuthJWK,
         OAuthProduct,
+        OAuthToken,
+        OAuthUser,
     )
 
 
@@ -58,7 +61,9 @@ class OAuthCountryRepository(BaseRepository[OAuthCountry]):
 
     def get_by_code(self, code: str) -> Optional[OAuthCountry]:
         """Obtiene un país por su código"""
-        statement = select(self.model_class).where(self.model_class.code == code.lower())
+        statement = select(self.model_class).where(
+            self.model_class.code == code.lower()
+        )
         return self.session.exec(statement).first()
 
     def get_active_countries(self) -> List[OAuthCountry]:
@@ -106,7 +111,9 @@ class OAuthUserRepository(BaseRepository[OAuthUser]):
         statement = select(self.model).where(self.model.email == email)
         return self.session.exec(statement).first()
 
-    def get_users_by_environment(self, environment: OAuthEnvironment) -> List[OAuthUser]:
+    def get_users_by_environment(
+        self, environment: OAuthEnvironment
+    ) -> List[OAuthUser]:
         """Obtiene todos los usuarios activos de un ambiente"""
         statement = select(self.model).where(
             self.model.environment == environment,
@@ -215,7 +222,9 @@ class OAuthApplicationRepository(BaseRepository[OAuthApplication]):
         """Crea una nueva aplicación OAuth"""
         existing = self.get_by_client_id(client_id)
         if existing:
-            raise DuplicateEntityError(f"Application with client_id {client_id} already exists")
+            raise DuplicateEntityError(
+                f"Application with client_id {client_id} already exists"
+            )
 
         application = OAuthApplication(
             client_id=client_id,
@@ -278,7 +287,9 @@ class OAuthEnvironmentConfigRepository(BaseRepository[OAuthEnvironmentConfig]):
     def __init__(self, session: Session):
         super().__init__(session, OAuthEnvironmentConfig)
 
-    def get_by_environment(self, environment: OAuthEnvironment) -> Optional[OAuthEnvironmentConfig]:
+    def get_by_environment(
+        self, environment: OAuthEnvironment
+    ) -> Optional[OAuthEnvironmentConfig]:
         """Obtiene la configuración de un ambiente"""
         statement = select(self.model).where(
             self.model.environment == environment,
@@ -295,7 +306,9 @@ class OAuthEnvironmentConfigRepository(BaseRepository[OAuthEnvironmentConfig]):
         """Crea configuración de ambiente"""
         existing = self.get_by_environment(environment)
         if existing:
-            raise DuplicateEntityError(f"Environment config for {environment} already exists")
+            raise DuplicateEntityError(
+                f"Environment config for {environment} already exists"
+            )
 
         config = OAuthEnvironmentConfig(
             environment=environment,

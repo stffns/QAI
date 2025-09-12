@@ -18,15 +18,19 @@ from pathlib import Path
 
 # Absolute-first imports with fallback to add project root to sys.path
 try:
-    from src.infrastructure.gatling.status_reader import InMemoryStatusStore
-    from src.application.performance.dto import SimulationParams
     from src.application.performance.config_builder import ConfigBuilder
+    from src.application.performance.dto import SimulationParams
+    from src.infrastructure.gatling.status_reader import InMemoryStatusStore
 except ImportError:  # pragma: no cover - fallback for direct runs
-    import sys, os
+    import os
+    import sys
+
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-    from src.infrastructure.gatling.status_reader import InMemoryStatusStore  # type: ignore
-    from src.application.performance.dto import SimulationParams  # type: ignore
     from src.application.performance.config_builder import ConfigBuilder  # type: ignore
+    from src.application.performance.dto import SimulationParams  # type: ignore
+    from src.infrastructure.gatling.status_reader import (
+        InMemoryStatusStore,  # type: ignore
+    )
 
 
 RUNS_BASE = Path("data/perf_runs")
@@ -42,7 +46,11 @@ class GatlingRunner:
         run_dir.mkdir(parents=True, exist_ok=True)
 
         # Derive resolved URLs from mutated params provided by the orchestrator
-        resolved_url = params.endpoint_slug if params.endpoint_slug and params.endpoint_slug.startswith("http") else None
+        resolved_url = (
+            params.endpoint_slug
+            if params.endpoint_slug and params.endpoint_slug.startswith("http")
+            else None
+        )
         resolved_scenarios = None
         if params.scenarios:
             resolved_scenarios = [sp.endpoint_slug or "" for sp in params.scenarios]
@@ -71,6 +79,8 @@ class GatlingRunner:
             # Non-fatal; continue the run even if config write fails
             pass
 
-        t = threading.Thread(target=self._simulate_execution, args=(execution_id, params), daemon=True)
+        t = threading.Thread(
+            target=self._simulate_execution, args=(execution_id, params), daemon=True
+        )
         t.start()
         return execution_id

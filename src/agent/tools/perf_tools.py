@@ -5,18 +5,18 @@ These are intentionally minimal. Business logic lives in the application layer.
 """
 
 import json
-from typing import Any, List, Optional
 import time
+from pathlib import Path
+from typing import Any, List, Optional
 
 from agno.tools import tool
-from pathlib import Path
 
 
 def _serialize_datetimes(data: Any) -> Any:
     """
     Recursively convert datetime objects to ISO strings for JSON serialization.
     """
-    if hasattr(data, 'isoformat'):  # datetime objects
+    if hasattr(data, "isoformat"):  # datetime objects
         return data.isoformat()
     elif isinstance(data, dict):
         return {key: _serialize_datetimes(value) for key, value in data.items()}
@@ -28,23 +28,44 @@ def _serialize_datetimes(data: Any) -> Any:
 
 # Absolute-first imports with fallback
 try:
+    from config import get_settings
+    from database.models.performance_test_executions import ExecutionStatus
+    from database.repositories.performance_test_executions import (
+        PerformanceTestExecutionRepository,
+    )
+    from database.repositories.unit_of_work import create_unit_of_work_factory
     from src.application.performance import PerformanceService, SimulationParams
     from src.application.performance.factory import build_default_service
-    from src.infrastructure.gatling.results_parser import parse_gatling_results, parse_gatling_endpoint_results
-    from config import get_settings
-    from database.repositories.unit_of_work import create_unit_of_work_factory
-    from database.repositories.performance_test_executions import PerformanceTestExecutionRepository
-    from database.models.performance_test_executions import ExecutionStatus
+    from src.infrastructure.gatling.results_parser import (
+        parse_gatling_endpoint_results,
+        parse_gatling_results,
+    )
 except ImportError:  # pragma: no cover
-    import sys, os
+    import os
+    import sys
+
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-    from src.application.performance import PerformanceService, SimulationParams  # type: ignore
-    from src.application.performance.factory import build_default_service  # type: ignore
-    from src.infrastructure.gatling.results_parser import parse_gatling_results, parse_gatling_endpoint_results  # type: ignore
     from config import get_settings  # type: ignore
-    from database.repositories.unit_of_work import create_unit_of_work_factory  # type: ignore
-    from database.repositories.performance_test_executions import PerformanceTestExecutionRepository  # type: ignore
-    from database.models.performance_test_executions import ExecutionStatus  # type: ignore
+    from database.models.performance_test_executions import (
+        ExecutionStatus,  # type: ignore
+    )
+    from database.repositories.performance_test_executions import (
+        PerformanceTestExecutionRepository,  # type: ignore
+    )
+    from database.repositories.unit_of_work import (
+        create_unit_of_work_factory,  # type: ignore
+    )
+    from src.application.performance import (  # type: ignore
+        PerformanceService,
+        SimulationParams,
+    )
+    from src.application.performance.factory import (
+        build_default_service,  # type: ignore
+    )
+    from src.infrastructure.gatling.results_parser import (  # type: ignore
+        parse_gatling_endpoint_results,
+        parse_gatling_results,
+    )
 
 
 _service: Optional[PerformanceService] = None
@@ -95,7 +116,7 @@ def perf_submit_run(
     test_type = test_type or "smoke"
     users = users or 10
     duration_sec = duration_sec or 60
-    
+
     service = _get_service()
     # Prepare params; when scenarios provided, we keep single-scenario fields for defaults only
     kw = dict(
@@ -144,22 +165,24 @@ def perf_submit_run(
 
 @tool
 def perf_get_status(execution_id: str) -> str:
-    """Get the current status for a performance run. 
-    
+    """Get the current status for a performance run.
+
     This function also automatically processes and persists results to database when the test completes.
     Call this periodically to monitor test progress and ensure results are saved.
     """
     service = _get_service()
     st = service.status(execution_id)  # This triggers result processing when complete
-    
+
     # Add helpful info about result processing
     status_data = st.model_dump()
-    
+
     # Convert datetime objects to ISO strings for JSON serialization
     status_data = _serialize_datetimes(status_data)
-    
+
     if st.status in ("succeeded", "failed"):
-        status_data["results_note"] = "Results have been automatically processed and saved to database"
+        status_data["results_note"] = (
+            "Results have been automatically processed and saved to database"
+        )
         # Try to get execution info to show DB persistence
         try:
             execution_data = service.get_execution(execution_id)
@@ -168,15 +191,17 @@ def perf_get_status(execution_id: str) -> str:
                 status_data["db_metrics"] = {
                     "total_requests": execution_data.get("total_requests"),
                     "error_rate": execution_data.get("error_rate"),
-                    "avg_response_time": execution_data.get("avg_response_time")
+                    "avg_response_time": execution_data.get("avg_response_time"),
                 }
             else:
                 status_data["db_persistence"] = "pending"
         except Exception:
             status_data["db_persistence"] = "unknown"
     else:
-        status_data["results_note"] = f"Test is {st.status}. Results will be processed when complete."
-    
+        status_data["results_note"] = (
+            f"Test is {st.status}. Results will be processed when complete."
+        )
+
     return json.dumps(status_data)
 
 
@@ -218,38 +243,48 @@ __all__ = [
 @tool
 def perf_process_completed_results(execution_id: str) -> str:
     """Force processing of results for a completed test execution.
-    
+
     Use this when a test has finished but results haven't been processed yet.
     This is useful for batch operations where tests run independently.
     """
     service = _get_service()
-    
+
     try:
         # Force status check to trigger result processing
         status = service.status(execution_id)
-        
+
         # Get updated execution data
         execution_data = service.get_execution(execution_id)
-        
-        return json.dumps({
-            "execution_id": execution_id,
-            "processing_triggered": True,
-            "current_status": status.status,
-            "results_processed": execution_data.get("total_requests", 0) > 0,
-            "metrics_summary": {
-                "total_requests": execution_data.get("total_requests"),
-                "error_rate": execution_data.get("error_rate"),
-                "avg_response_time": execution_data.get("avg_response_time"),
-                "gatling_report_path": execution_data.get("gatling_report_path")
-            } if execution_data else None
-        })
-        
+
+        return json.dumps(
+            {
+                "execution_id": execution_id,
+                "processing_triggered": True,
+                "current_status": status.status,
+                "results_processed": execution_data.get("total_requests", 0) > 0,
+                "metrics_summary": (
+                    {
+                        "total_requests": execution_data.get("total_requests"),
+                        "error_rate": execution_data.get("error_rate"),
+                        "avg_response_time": execution_data.get("avg_response_time"),
+                        "gatling_report_path": execution_data.get(
+                            "gatling_report_path"
+                        ),
+                    }
+                    if execution_data
+                    else None
+                ),
+            }
+        )
+
     except Exception as e:
-        return json.dumps({
-            "execution_id": execution_id,
-            "processing_triggered": False,
-            "error": str(e)
-        })
+        return json.dumps(
+            {
+                "execution_id": execution_id,
+                "processing_triggered": False,
+                "error": str(e),
+            }
+        )
 
 
 @tool
@@ -273,7 +308,7 @@ def perf_plan_runs(
     test_type = test_type or "smoke"
     users = users or 10
     duration_sec = duration_sec or 60
-    
+
     service = _get_service()
     plan: List[dict[str, Any]] = []
     needle = (endpoint_filter or "").lower()
@@ -294,7 +329,11 @@ def perf_plan_runs(
                         {
                             "scenario_slug": name,
                             "endpoint_slug": name,  # resolved via DB later; or if full URL, used as-is
-                            "rps_target": (per_endpoint_rps or {}).get(name) if (per_endpoint_rps and name) else None,
+                            "rps_target": (
+                                (per_endpoint_rps or {}).get(name)
+                                if (per_endpoint_rps and name)
+                                else None
+                            ),
                         }
                     )
 
@@ -340,7 +379,9 @@ def perf_submit_batch(plan_json: str, max_concurrent: int = 3) -> str:
             return {"index": idx, "error": str(e)}
 
     with cf.ThreadPoolExecutor(max_workers=max(1, int(max_concurrent))) as ex:
-        futs = [ex.submit(_submit_one, idx, item) for idx, item in enumerate(plan_items)]
+        futs = [
+            ex.submit(_submit_one, idx, item) for idx, item in enumerate(plan_items)
+        ]
         for f in cf.as_completed(futs):
             results.append(f.result())
 
@@ -416,7 +457,7 @@ def perf_run_test(
     test_type = test_type or "smoke"
     users = users or 10
     duration_sec = duration_sec or 60
-    
+
     service = _get_service()
     # Build params similar to perf_submit_run
     kw = dict(
@@ -484,12 +525,14 @@ def perf_run_test(
         summary = {"parsed": False, "error": str(e)}
 
     execution = service.get_execution(execution_id)
-    return json.dumps({
-        "execution_id": execution_id,
-        "final_status": final_status,
-        "summary": summary,
-        "execution": execution,
-    })
+    return json.dumps(
+        {
+            "execution_id": execution_id,
+            "final_status": final_status,
+            "summary": summary,
+            "execution": execution,
+        }
+    )
 
 
 def perf_run_test_internal(
@@ -630,18 +673,25 @@ def perf_get_metrics() -> str:
             for r in service.list_recent(10).items
         ]
 
-        return json.dumps({
-            "counts": {
-                "PENDING": pending,
-                "RUNNING": running,
-                "COMPLETED": completed,
-                "FAILED": failed,
-            },
-            "recent": recent,
-            "prometheus": {"metrics_url": "http://localhost:9400/metrics"},
-        })
+        return json.dumps(
+            {
+                "counts": {
+                    "PENDING": pending,
+                    "RUNNING": running,
+                    "COMPLETED": completed,
+                    "FAILED": failed,
+                },
+                "recent": recent,
+                "prometheus": {"metrics_url": "http://localhost:9400/metrics"},
+            }
+        )
     except Exception as e:
-        return json.dumps({"error": str(e), "prometheus": {"metrics_url": "http://localhost:9400/metrics"}})
+        return json.dumps(
+            {
+                "error": str(e),
+                "prometheus": {"metrics_url": "http://localhost:9400/metrics"},
+            }
+        )
 
 
 def perf_get_metrics_internal() -> dict:
@@ -684,7 +734,10 @@ def perf_get_metrics_internal() -> dict:
             "prometheus": {"metrics_url": "http://localhost:9400/metrics"},
         }
     except Exception as e:
-        return {"error": str(e), "prometheus": {"metrics_url": "http://localhost:9400/metrics"}}
+        return {
+            "error": str(e),
+            "prometheus": {"metrics_url": "http://localhost:9400/metrics"},
+        }
 
 
 @tool
@@ -693,7 +746,9 @@ def perf_get_prometheus_snapshot(url: str = "http://localhost:9400/metrics") -> 
 
     Returns a compact JSON with totals and currents for perf executions.
     """
-    import re, urllib.request
+    import re
+    import urllib.request
+
     try:
         with urllib.request.urlopen(url, timeout=5) as resp:
             body = resp.read().decode("utf-8", errors="ignore")
@@ -707,29 +762,41 @@ def perf_get_prometheus_snapshot(url: str = "http://localhost:9400/metrics") -> 
             if ln.startswith("#"):
                 continue
             if ln.startswith("qa_perf_executions_total{"):
-                m = re.match(r'^qa_perf_executions_total\{status="([A-Z]+)"\}\s+([0-9eE\.+-]+)', ln)
+                m = re.match(
+                    r'^qa_perf_executions_total\{status="([A-Z]+)"\}\s+([0-9eE\.+-]+)',
+                    ln,
+                )
                 if m:
                     counters[m.group(1)] = float(m.group(2))
             elif ln.startswith("qa_perf_executions_current{"):
-                m = re.match(r'^qa_perf_executions_current\{status="([A-Z]+)"\}\s+([0-9eE\.+-]+)', ln)
+                m = re.match(
+                    r'^qa_perf_executions_current\{status="([A-Z]+)"\}\s+([0-9eE\.+-]+)',
+                    ln,
+                )
                 if m:
                     gauges[m.group(1)] = float(m.group(2))
         return counters, gauges
 
     counters, gauges = parse_lines(body.splitlines())
-    return json.dumps({
-        "source": url,
-        "executions_total": counters,
-        "executions_current": gauges,
-    })
+    return json.dumps(
+        {
+            "source": url,
+            "executions_total": counters,
+            "executions_current": gauges,
+        }
+    )
 
 
-def perf_get_prometheus_snapshot_internal(url: str = "http://localhost:9400/metrics") -> dict:
+def perf_get_prometheus_snapshot_internal(
+    url: str = "http://localhost:9400/metrics",
+) -> dict:
     """Internal helper: same as perf_get_prometheus_snapshot but returns a dict.
 
     Useful for tests or direct Python calls without the @tool decorator.
     """
-    import re, urllib.request
+    import re
+    import urllib.request
+
     try:
         with urllib.request.urlopen(url, timeout=5) as resp:
             body = resp.read().decode("utf-8", errors="ignore")
@@ -742,11 +809,15 @@ def perf_get_prometheus_snapshot_internal(url: str = "http://localhost:9400/metr
         if ln.startswith("#"):
             continue
         if ln.startswith("qa_perf_executions_total{"):
-            m = re.match(r'^qa_perf_executions_total\{status="([A-Z]+)"\}\s+([0-9eE\.+-]+)', ln)
+            m = re.match(
+                r'^qa_perf_executions_total\{status="([A-Z]+)"\}\s+([0-9eE\.+-]+)', ln
+            )
             if m:
                 counters[m.group(1)] = float(m.group(2))
         elif ln.startswith("qa_perf_executions_current{"):
-            m = re.match(r'^qa_perf_executions_current\{status="([A-Z]+)"\}\s+([0-9eE\.+-]+)', ln)
+            m = re.match(
+                r'^qa_perf_executions_current\{status="([A-Z]+)"\}\s+([0-9eE\.+-]+)', ln
+            )
             if m:
                 gauges[m.group(1)] = float(m.group(2))
     return {"source": url, "executions_total": counters, "executions_current": gauges}
@@ -780,19 +851,19 @@ def perf_run_smart(
     pause_ms: Optional[int] = None,
 ) -> str:
     """Smart performance test execution.
-    
+
     If endpoint_url is specified: runs a single endpoint test.
     If endpoint_url is NOT specified: runs ALL available endpoints in a multi-scenario test.
-    
+
     Returns execution id for single endpoint, or JSON with multiple execution results for multi-scenario.
     """
     # Handle None values with defaults
     test_type = test_type or "smoke"
     users = users or 10
     duration_sec = duration_sec or 60
-    
+
     service = _get_service()
-    
+
     if endpoint_url:
         # Single endpoint mode - use existing logic
         kw = dict(
@@ -808,7 +879,7 @@ def perf_run_smart(
             feeder_file=feeder_file,
             injection_profile=injection_profile,
         )
-        
+
         # Add optional parameters
         if enable_assertions is not None:
             kw["enable_assertions"] = enable_assertions
@@ -832,49 +903,53 @@ def perf_run_smart(
             kw["to_users"] = to_users
         if pause_ms is not None:
             kw["pause_ms"] = pause_ms
-            
+
         params = SimulationParams(**kw)  # type: ignore[arg-type]
         submitted = service.submit(params)
         execution_id = submitted.execution_id
-        
+
         # Return immediately with execution info - don't wait
-        return json.dumps({
-            "mode": "single-endpoint",
-            "execution_id": execution_id,
-            "status": "submitted",
-            "endpoint": endpoint_url,
-            "test_config": {
-                "app": app_slug,
-                "country": country_code,
-                "environment": environment,
-                "users": users,
-                "duration_sec": duration_sec,
-                "test_type": test_type
-            },
-            "monitoring": {
-                "prometheus_metrics": "http://localhost:9400/metrics",
-                "check_status": f"perf_get_status('{execution_id}')",
-                "note": "Results will be processed automatically when test completes. Use status check to trigger processing."
+        return json.dumps(
+            {
+                "mode": "single-endpoint",
+                "execution_id": execution_id,
+                "status": "submitted",
+                "endpoint": endpoint_url,
+                "test_config": {
+                    "app": app_slug,
+                    "country": country_code,
+                    "environment": environment,
+                    "users": users,
+                    "duration_sec": duration_sec,
+                    "test_type": test_type,
+                },
+                "monitoring": {
+                    "prometheus_metrics": "http://localhost:9400/metrics",
+                    "check_status": f"perf_get_status('{execution_id}')",
+                    "note": "Results will be processed automatically when test completes. Use status check to trigger processing.",
+                },
             }
-        })
-    
+        )
+
     else:
         # Multi-scenario mode - discover all endpoints and run them all
         try:
             endpoints = service.discover_endpoints(app_slug, environment, country_code)
             if not endpoints:
                 return f"No endpoints found for {app_slug}/{environment}/{country_code}"
-            
+
             # Create scenarios for all discovered endpoints
             scenarios = []
             for ep in endpoints:
                 name = str(ep.get("name") or ep.get("url") or "")
-                scenarios.append({
-                    "scenario_slug": name,
-                    "endpoint_slug": name,
-                    "rps_target": rps_target,  # Apply same RPS to all if specified
-                })
-            
+                scenarios.append(
+                    {
+                        "scenario_slug": name,
+                        "endpoint_slug": name,
+                        "rps_target": rps_target,  # Apply same RPS to all if specified
+                    }
+                )
+
             # Build multi-scenario params
             kw = dict(
                 app_slug=app_slug,
@@ -885,7 +960,7 @@ def perf_run_smart(
                 duration_sec=duration_sec,
                 scenarios=scenarios,
             )
-            
+
             # Add optional parameters
             if enable_assertions is not None:
                 kw["enable_assertions"] = enable_assertions
@@ -909,34 +984,36 @@ def perf_run_smart(
                 kw["to_users"] = to_users
             if pause_ms is not None:
                 kw["pause_ms"] = pause_ms
-                
+
             params = SimulationParams(**kw)  # type: ignore[arg-type]
             submitted = service.submit(params)
             execution_id = submitted.execution_id
-            
+
             # Return immediately with execution info - don't wait
             endpoint_names = [ep.get("name", "Unknown") for ep in endpoints]
-            return json.dumps({
-                "mode": "multi-scenario",
-                "execution_id": execution_id,
-                "status": "submitted",
-                "endpoints_tested": endpoint_names,
-                "total_endpoints": len(endpoints),
-                "test_config": {
-                    "app": app_slug,
-                    "country": country_code,
-                    "environment": environment,
-                    "users": users,
-                    "duration_sec": duration_sec,
-                    "test_type": test_type
-                },
-                "monitoring": {
-                    "prometheus_metrics": "http://localhost:9400/metrics",
-                    "check_status": f"perf_get_status('{execution_id}')",
-                    "note": "Multi-scenario test results will be processed automatically when complete."
+            return json.dumps(
+                {
+                    "mode": "multi-scenario",
+                    "execution_id": execution_id,
+                    "status": "submitted",
+                    "endpoints_tested": endpoint_names,
+                    "total_endpoints": len(endpoints),
+                    "test_config": {
+                        "app": app_slug,
+                        "country": country_code,
+                        "environment": environment,
+                        "users": users,
+                        "duration_sec": duration_sec,
+                        "test_type": test_type,
+                    },
+                    "monitoring": {
+                        "prometheus_metrics": "http://localhost:9400/metrics",
+                        "check_status": f"perf_get_status('{execution_id}')",
+                        "note": "Multi-scenario test results will be processed automatically when complete.",
+                    },
                 }
-            })
-            
+            )
+
         except Exception as e:
             return f"Error in multi-scenario execution: {str(e)}"
 
@@ -944,71 +1021,81 @@ def perf_run_smart(
 @tool
 def perf_process_completed_tests(limit: int = 10) -> str:
     """Process and persist results for recently completed tests that may not have been processed yet.
-    
+
     This is useful for batch processing when tests complete while the agent is not monitoring them.
     Uses Prometheus metrics to identify which tests need processing.
-    
+
     Args:
         limit: Maximum number of tests to process
-        
+
     Returns:
         JSON with processing results
     """
     service = _get_service()
-    
+
     try:
         # Get recent completed/failed executions from database
         settings = get_settings()
         if not settings.database.url:
             return json.dumps({"error": "Database not configured"})
-            
+
         uow_factory = create_unit_of_work_factory(settings.database.url)
-        
+
         with uow_factory.create_scope() as uow:
             exec_repo = uow.get_repository(PerformanceTestExecutionRepository)
-            
+
             # Find executions that might need processing
             # Look for RUNNING status executions that might have completed
             running_executions = exec_repo.find_by_status(ExecutionStatus.RUNNING)
             completed_executions = exec_repo.find_by_status(ExecutionStatus.COMPLETED)
             failed_executions = exec_repo.find_by_status(ExecutionStatus.FAILED)
-            
+
             # Process up to 'limit' executions
             to_process = running_executions[:limit]
-            
+
             processed = []
             for execution in to_process:
                 try:
                     # Call status to trigger result processing
                     status = service.status(execution.execution_id)
-                    processed.append({
-                        "execution_id": execution.execution_id,
-                        "old_status": "RUNNING",
-                        "new_status": status.status,
-                        "processed": True
-                    })
+                    processed.append(
+                        {
+                            "execution_id": execution.execution_id,
+                            "old_status": "RUNNING",
+                            "new_status": status.status,
+                            "processed": True,
+                        }
+                    )
                 except Exception as e:
-                    processed.append({
-                        "execution_id": execution.execution_id,
-                        "processed": False,
-                        "error": str(e)
-                    })
-                    
-            return json.dumps({
-                "status": "success",
-                "summary": {
-                    "running_found": len(running_executions),
-                    "completed_found": len(completed_executions), 
-                    "failed_found": len(failed_executions),
-                    "processed_count": len([p for p in processed if p.get("processed")])
-                },
-                "processed_executions": processed,
-                "prometheus_metrics": "http://localhost:9400/metrics"
-            })
-            
+                    processed.append(
+                        {
+                            "execution_id": execution.execution_id,
+                            "processed": False,
+                            "error": str(e),
+                        }
+                    )
+
+            return json.dumps(
+                {
+                    "status": "success",
+                    "summary": {
+                        "running_found": len(running_executions),
+                        "completed_found": len(completed_executions),
+                        "failed_found": len(failed_executions),
+                        "processed_count": len(
+                            [p for p in processed if p.get("processed")]
+                        ),
+                    },
+                    "processed_executions": processed,
+                    "prometheus_metrics": "http://localhost:9400/metrics",
+                }
+            )
+
     except Exception as e:
-        return json.dumps({
-            "status": "error",
-            "message": str(e),
-            "suggestion": "Check database connection and Prometheus status"
-        })
+        return json.dumps(
+            {
+                "status": "error",
+                "message": str(e),
+                "suggestion": "Check database connection and Prometheus status",
+            }
+        )

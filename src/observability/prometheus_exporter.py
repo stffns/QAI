@@ -7,21 +7,31 @@ Starts an HTTP server and exposes low-cardinality metrics aggregated from DB.
 
 from typing import Optional
 
-from prometheus_client import Counter, Gauge, start_http_server, CollectorRegistry
+from prometheus_client import CollectorRegistry, Counter, Gauge, start_http_server
 
 # Absolute-first imports with fallback to handle direct runs
 try:
     from config import get_settings
-    from database.repositories.unit_of_work import create_unit_of_work_factory
-    from database.repositories.performance_test_executions import PerformanceTestExecutionRepository
     from database.models.performance_test_executions import ExecutionStatus
+    from database.repositories.performance_test_executions import (
+        PerformanceTestExecutionRepository,
+    )
+    from database.repositories.unit_of_work import create_unit_of_work_factory
 except ImportError:  # pragma: no cover - fallback
-    import sys, os
+    import os
+    import sys
+
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
     from config import get_settings  # type: ignore
-    from database.repositories.unit_of_work import create_unit_of_work_factory  # type: ignore
-    from database.repositories.performance_test_executions import PerformanceTestExecutionRepository  # type: ignore
-    from database.models.performance_test_executions import ExecutionStatus  # type: ignore
+    from database.models.performance_test_executions import (
+        ExecutionStatus,  # type: ignore
+    )
+    from database.repositories.performance_test_executions import (
+        PerformanceTestExecutionRepository,  # type: ignore
+    )
+    from database.repositories.unit_of_work import (
+        create_unit_of_work_factory,  # type: ignore
+    )
 
 
 # Use a dedicated registry to avoid duplicates on module re-import/reload
@@ -87,6 +97,7 @@ def run_exporter(port: int = 9400) -> None:
     start_http_server(port, registry=REGISTRY)
     # Very simple polling loop; in production, integrate into your scheduler
     import time
+
     while True:
         try:
             if uow_factory:

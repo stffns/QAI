@@ -19,6 +19,11 @@ if TYPE_CHECKING:
     from .apps import Apps
     from .app_environment_country_mappings import AppEnvironmentCountryMapping
     from .application_endpoints import ApplicationEndpoint
+else:  # Ensure ApplicationEndpoint is imported at runtime for mapper resolution
+    try:  # pragma: no cover
+        from .application_endpoints import ApplicationEndpoint  # noqa: F401
+    except Exception:  # pragma: no cover
+        ApplicationEndpoint = None  # type: ignore
 
 
 class Countries(SQLModel, table=True):
