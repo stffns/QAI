@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from .apps import Apps
     from .countries import Countries
     from .environments import Environments
+    from .test_scenarios import TestScenario
 
 class AppEnvironmentCountryMapping(SQLModel, table=True):
     """
@@ -146,6 +147,7 @@ class AppEnvironmentCountryMapping(SQLModel, table=True):
     application: "Apps" = Relationship(back_populates="country_mappings")
     country: "Countries" = Relationship(back_populates="app_mappings")
     environment: "Environments" = Relationship(back_populates="app_mappings")
+    test_scenarios: Optional[list["TestScenario"]] = Relationship(back_populates="mapping")
     
     def __repr__(self) -> str:
         """String representation of the mapping record"""
