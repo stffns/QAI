@@ -181,6 +181,42 @@ class ApplicationEndpointRepository(BaseRepository[ApplicationEndpoint]):
         """Get endpoints for app+env+country combination (legacy method)."""
         return self.get_by_app_env_country_via_mapping(application_id, environment_id, country_id)
 
+    def get_by_combination(
+        self,
+        application_id: int,
+        environment_id: int,
+        country_id: Optional[int],
+        endpoint_name: str,
+        active_only: bool = True
+    ) -> Optional[ApplicationEndpoint]:
+        """Get a specific endpoint by app+env+country+name combination."""
+        from ..models.app_environment_country_mappings import AppEnvironmentCountryMapping
+        
+        # First find the mapping
+        mapping_query = select(AppEnvironmentCountryMapping).where(
+            AppEnvironmentCountryMapping.application_id == application_id,
+            AppEnvironmentCountryMapping.environment_id == environment_id
+        )
+        
+        if country_id is not None:
+            mapping_query = mapping_query.where(AppEnvironmentCountryMapping.country_id == country_id)
+        
+        mapping = self.session.exec(mapping_query).first()
+        
+        if not mapping or not mapping.id:
+            return None
+        
+        # Then find the endpoint in that mapping
+        endpoint_query = select(ApplicationEndpoint).where(
+            ApplicationEndpoint.mapping_id == mapping.id,
+            ApplicationEndpoint.endpoint_name == endpoint_name
+        )
+        
+        if active_only:
+            endpoint_query = endpoint_query.where(ApplicationEndpoint.is_active == True)
+        
+        return self.session.exec(endpoint_query).first()
+
     def get_by_app_env_country_via_mapping(
         self, 
         application_id: int, 

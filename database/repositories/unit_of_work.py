@@ -233,6 +233,8 @@ class UnitOfWorkFactory:
                 from database.models.environments import Environments  # noqa: F401
                 from database.models.countries import Countries  # noqa: F401
                 from database.models.api_collections import ApiCollection  # noqa: F401
+                # Import test scenarios models to register table relationships
+                from database.models.test_scenarios import TestScenario, TestScenarioEndpoint  # noqa: F401
                 # from database.models.api_collections import ApiRequest  # REMOVED - deprecated
             except Exception:
                 # Soft-fail; metadata may still be complete enough

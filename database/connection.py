@@ -45,8 +45,8 @@ class DatabaseManager:
                 echo=self.echo
             )
             
-            # Aplicar PRAGMAs SQLite
-            self._apply_sqlite_pragmas(engine)
+            # Aplicar PRAGMAs SQLite en cada conexión
+            self._setup_sqlite_event_listeners(engine)
             return engine
             
         else:
@@ -59,15 +59,36 @@ class DatabaseManager:
                 echo=self.echo
             )
     
-    def _apply_sqlite_pragmas(self, engine: Engine):
-        """Aplicar configuraciones SQLite"""
+    def _setup_sqlite_event_listeners(self, engine: Engine):
+        """Configurar event listeners para aplicar PRAGMAs en cada conexión SQLite"""
         if "sqlite" not in self.database_url:
             return
+            
+        from sqlalchemy import event
         
-        with engine.connect() as connection:
+        @event.listens_for(engine, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            """Aplicar PRAGMAs en cada nueva conexión SQLite"""
+            cursor = dbapi_connection.cursor()
+            # Define a whitelist of allowed PRAGMA names and (optionally) allowed values
+            ALLOWED_PRAGMAS = {
+                "journal_mode": {"wal", "delete", "truncate", "persist", "memory", "off"},
+                "synchronous": {"off", "normal", "full", "extra", 0, 1, 2, 3},
+                "foreign_keys": {0, 1, "on", "off", "true", "false"},
+                "cache_size": None,  # None means any integer is allowed
+                "temp_store": {0, 1, 2, "default", "file", "memory"},
+                # Add more PRAGMAs as needed
+            }
             for pragma, value in DatabaseConfig.SQLITE_PRAGMAS.items():
-                connection.execute(text(f"PRAGMA {pragma} = {value}"))
-                connection.commit()
+                if pragma not in ALLOWED_PRAGMAS:
+                    continue  # or raise ValueError(f"Disallowed PRAGMA: {pragma}")
+                allowed_values = ALLOWED_PRAGMAS[pragma]
+                if allowed_values is not None:
+                    if value not in allowed_values:
+                        continue  # or raise ValueError(f"Disallowed value for PRAGMA {pragma}: {value}")
+                # If allowed_values is None, allow any integer value (for e.g. cache_size)
+                cursor.execute(f"PRAGMA {pragma} = {value}")
+            cursor.close()
                 
     def create_db_and_tables(self):
         """Crear todas las tablas definidas en los modelos"""
