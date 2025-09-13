@@ -1,6 +1,6 @@
 """
 Database connection management for QA Intelligence
-Handles SQLite and PostgreSQL connections with pooling
+Handles SQLite and PostgreSQL/Supabase connections with pooling
 """
 
 from sqlmodel import create_engine, Session, SQLModel
@@ -12,6 +12,19 @@ from typing import Generator, Optional
 import os
 from .base import DatabaseConfig
 
+try:
+    from config.supabase import get_supabase_config, is_supabase_configured, get_database_url
+except ImportError:
+    # Fallback if config module not available
+    def get_database_url() -> str:
+        return os.getenv("DATABASE_URL", "sqlite:///./data/qa_intelligence.db")
+    
+    def is_supabase_configured() -> bool:
+        return False
+    
+    def get_supabase_config():
+        return None
+
 class DatabaseManager:
     """Manager centralizado para conexiones de base de datos"""
     
@@ -22,14 +35,11 @@ class DatabaseManager:
     
     def _get_database_url(self) -> str:
         """Obtener URL de base de datos desde configuración"""
-        return os.getenv(
-            "DATABASE_URL", 
-            "sqlite:///./data/qa_intelligence.db"
-        )
+        # Use centralized database URL logic with Supabase support
+        return get_database_url()
     
     def _setup_engine(self) -> Engine:
         """Configurar engine de SQLAlchemy"""
-        connect_args = {}
         
         if "sqlite" in self.database_url:
             # Configuración SQLite
@@ -49,13 +59,30 @@ class DatabaseManager:
             self._setup_sqlite_event_listeners(engine)
             return engine
             
-        else:
-            # Configuración PostgreSQL
+        elif "postgresql" in self.database_url:
+            # Configuración PostgreSQL/Supabase
+            if is_supabase_configured():
+                # Use Supabase-optimized configuration
+                config = get_supabase_config()
+                if config is not None:
+                    return create_engine(
+                        self.database_url,
+                        **config.connection_kwargs,
+                        echo=self.echo
+                    )
+            
+            # Fallback to standard PostgreSQL configuration
             return create_engine(
                 self.database_url,
                 pool_size=DatabaseConfig.POSTGRES_POOL_SIZE,
                 max_overflow=DatabaseConfig.POSTGRES_MAX_OVERFLOW,
                 pool_pre_ping=DatabaseConfig.POSTGRES_POOL_PRE_PING,
+                echo=self.echo
+            )
+        else:
+            # Generic configuration for other database types
+            return create_engine(
+                self.database_url,
                 echo=self.echo
             )
     

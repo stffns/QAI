@@ -5,9 +5,11 @@ duckduckgo-search
 fastapi
 uvicorn
 pydantic[dotenv]
+pydantic-settings
 pyyaml
 ddgs
 sqlalchemy
+psycopg2-binary
 prometheus-client
 beautifulsoup4
 

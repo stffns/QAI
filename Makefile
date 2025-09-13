@@ -46,6 +46,12 @@ help:
 	@echo "  run-server   Run WebSocket server + Prometheus"
 	@echo "  run-stack    Run complete stack (Agent + WebSocket + Prometheus)"
 	@echo ""
+	@echo "Database Migration:"
+	@echo "  migrate-to-supabase  Run complete Supabase migration"
+	@echo "  check-supabase       Check Supabase configuration"
+	@echo "  init-supabase-db     Initialize database tables"
+	@echo "  test-supabase        Test database connection"
+	@echo ""
 
 # Installation
 install:
@@ -140,6 +146,23 @@ clean-logs:
 	@echo "🧹 Cleaning old logs..."
 	@rm -rf logs/
 	@echo "✅ Logs cleaned"
+
+# Database Migration
+migrate-to-supabase: ## Run Supabase migration setup and validation
+	@echo "🚀 Starting Supabase migration..."
+	$(PY) scripts/migrate_to_supabase.py
+
+check-supabase: ## Check Supabase configuration and connection
+	@echo "🔍 Checking Supabase setup..."
+	$(PY) -c "from config.supabase import is_supabase_configured, check_supabase_connection; print('✅ Configured' if is_supabase_configured() else '❌ Not configured')"
+
+init-supabase-db: ## Initialize Supabase database with tables
+	@echo "🏗️ Initializing Supabase database..."
+	$(PY) -c "from database.connection import init_database; init_database()"
+
+test-supabase: ## Test Supabase database connection
+	@echo "🧪 Testing Supabase connection..."
+	$(PY) -c "from database.connection import test_connection; test_connection()"
 
 type-check:
 	$(MYPY) src/ scripts/ config
