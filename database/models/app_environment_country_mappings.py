@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from .apps import Apps
     from .countries import Countries
     from .environments import Environments
-    from .test_scenarios import TestScenario
 
 class AppEnvironmentCountryMapping(SQLModel, table=True):
     """
@@ -147,7 +146,7 @@ class AppEnvironmentCountryMapping(SQLModel, table=True):
     application: "Apps" = Relationship(back_populates="country_mappings")
     country: "Countries" = Relationship(back_populates="app_mappings")
     environment: "Environments" = Relationship(back_populates="app_mappings")
-    test_scenarios: Optional[list["TestScenario"]] = Relationship(back_populates="mapping")
+    # test_scenarios relationship commented out to avoid circular import - use queries instead
     
     def __repr__(self) -> str:
         """String representation of the mapping record"""
@@ -278,3 +277,6 @@ class AppEnvironmentCountryMapping(SQLModel, table=True):
                 launched_date=datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
             )
         ]
+
+
+

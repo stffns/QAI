@@ -80,9 +80,11 @@ class TestScenarioManager:
                     }
                 
                 # Verificar que no existe un escenario con el mismo nombre
-                existing = session.query(TestScenario).filter_by(
-                    mapping_id=mapping_id,
-                    scenario_name=scenario_name
+                existing = session.exec(
+                    select(TestScenario).where(
+                        TestScenario.mapping_id == mapping_id,
+                        TestScenario.scenario_name == scenario_name
+                    )
                 ).first()
                 
                 if existing:
@@ -194,9 +196,11 @@ class TestScenarioManager:
                         continue
                     
                     # Verificar si ya existe la relación
-                    existing = session.query(TestScenarioEndpoint).filter_by(
-                        scenario_id=scenario_id,
-                        endpoint_id=endpoint_id
+                    existing = session.exec(
+                        select(TestScenarioEndpoint).where(
+                            TestScenarioEndpoint.scenario_id == scenario_id,
+                            TestScenarioEndpoint.endpoint_id == endpoint_id
+                        )
                     ).first()
                     
                     if existing:

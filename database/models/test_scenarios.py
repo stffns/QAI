@@ -121,7 +121,7 @@ class TestScenario(SQLModel, table=True):
     )
     
     # Relationships
-    mapping: Optional["AppEnvironmentCountryMapping"] = Relationship(back_populates="test_scenarios")
+    mapping: Optional["AppEnvironmentCountryMapping"] = Relationship()
     scenario_endpoints: List["TestScenarioEndpoint"] = Relationship(back_populates="scenario")
     
     @field_validator('scenario_name')
