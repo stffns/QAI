@@ -618,18 +618,18 @@ def delete_test_scenario(scenario_id: int) -> str:
         scenario_name = scenario["name"]
         endpoint_count = scenario["total_endpoints"]
         
-        # Delete the scenario (this will cascade to delete endpoint relationships)
-        with manager.uow_factory.create_scope() as uow:
-            from database.models.test_scenarios import TestScenario
-            
-            scenario_obj = uow.session.get(TestScenario, scenario_id)
-            if scenario_obj:
-                uow.session.delete(scenario_obj)
-                return f"✅ SCENARIO DELETED: '{scenario_name}' (ID: {scenario_id}) and {endpoint_count} endpoint relationships removed"
-            else:
-                return f"❌ DELETE FAILED: Could not find scenario {scenario_id} to delete"
+        # Delete the scenario using the manager method
+        result = manager.delete_scenario(scenario_id)
+        
+        if result["success"]:
+            return f"✅ SCENARIO DELETED: '{result['scenario_name']}' (ID: {scenario_id})\n" \
+                   f"📊 Removed {result['relationships_deleted']} endpoint relationships (cascade)\n" \
+                   f"✅ Verification: {result['relationships_remaining']} relationships remain (should be 0)"
+        else:
+            return f"❌ DELETE FAILED: {result['error']}"
             
     except Exception as e:
+        logger.error(f"Error deleting scenario {scenario_id}: {e}")
         return f"❌ Error deleting scenario: {str(e)}"
 
 

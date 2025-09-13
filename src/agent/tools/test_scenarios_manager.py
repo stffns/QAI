@@ -375,6 +375,65 @@ class TestScenarioManager:
             logger.error(f"❌ Error listing scenarios for mapping {mapping_id}: {e}")
             return []
     
+    def delete_scenario(self, scenario_id: int) -> Dict[str, Any]:
+        """
+        Eliminar un escenario y todas sus relaciones de endpoints
+        
+        Args:
+            scenario_id: ID del escenario a eliminar
+            
+        Returns:
+            Dict con resultado de la operación
+        """
+        try:
+            with self.uow_factory.create_scope() as uow:
+                session = uow.session
+                
+                # Verificar que el escenario existe y obtener info
+                scenario = session.get(TestScenario, scenario_id)
+                if not scenario:
+                    return {
+                        "success": False,
+                        "error": f"Scenario {scenario_id} not found"
+                    }
+                
+                scenario_name = scenario.scenario_name
+                
+                # Contar relaciones antes del borrado
+                stmt_count = select(TestScenarioEndpoint).where(
+                    TestScenarioEndpoint.scenario_id == scenario_id
+                )
+                relationships = session.exec(stmt_count).all()
+                relationships_count = len(relationships)
+                
+                # FIRST: Eliminar las relaciones manualmente para evitar conflictos con SQLAlchemy ORM
+                for relationship in relationships:
+                    session.delete(relationship)
+                
+                # SECOND: Eliminar el escenario
+                session.delete(scenario)
+                session.flush()
+                
+                # Verificar que todo se eliminó correctamente
+                relationships_after = len(session.exec(stmt_count).all())
+                
+                logger.info(f"✅ Deleted scenario '{scenario_name}' (ID: {scenario_id}) with {relationships_count} endpoint relationships")
+                
+                return {
+                    "success": True,
+                    "scenario_id": scenario_id,
+                    "scenario_name": scenario_name,
+                    "relationships_deleted": relationships_count,
+                    "relationships_remaining": relationships_after
+                }
+                
+        except Exception as e:
+            logger.error(f"❌ Error deleting scenario {scenario_id}: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
     def create_performance_scenario_for_mapping(
         self,
         mapping_id: int,

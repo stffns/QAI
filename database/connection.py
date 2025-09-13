@@ -45,8 +45,8 @@ class DatabaseManager:
                 echo=self.echo
             )
             
-            # Aplicar PRAGMAs SQLite
-            self._apply_sqlite_pragmas(engine)
+            # Aplicar PRAGMAs SQLite en cada conexión
+            self._setup_sqlite_event_listeners(engine)
             return engine
             
         else:
@@ -59,15 +59,20 @@ class DatabaseManager:
                 echo=self.echo
             )
     
-    def _apply_sqlite_pragmas(self, engine: Engine):
-        """Aplicar configuraciones SQLite"""
+    def _setup_sqlite_event_listeners(self, engine: Engine):
+        """Configurar event listeners para aplicar PRAGMAs en cada conexión SQLite"""
         if "sqlite" not in self.database_url:
             return
+            
+        from sqlalchemy import event
         
-        with engine.connect() as connection:
+        @event.listens_for(engine, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            """Aplicar PRAGMAs en cada nueva conexión SQLite"""
+            cursor = dbapi_connection.cursor()
             for pragma, value in DatabaseConfig.SQLITE_PRAGMAS.items():
-                connection.execute(text(f"PRAGMA {pragma} = {value}"))
-                connection.commit()
+                cursor.execute(f"PRAGMA {pragma} = {value}")
+            cursor.close()
                 
     def create_db_and_tables(self):
         """Crear todas las tablas definidas en los modelos"""

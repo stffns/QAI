@@ -122,7 +122,10 @@ class TestScenario(SQLModel, table=True):
     
     # Relationships
     # mapping relationship removed to avoid circular imports - use foreign key queries instead
-    scenario_endpoints: List["TestScenarioEndpoint"] = Relationship(back_populates="scenario")
+    scenario_endpoints: List["TestScenarioEndpoint"] = Relationship(
+        back_populates="scenario",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan", "passive_deletes": True}
+    )
     
     @field_validator('scenario_name')
     @classmethod
@@ -234,7 +237,10 @@ class TestScenarioEndpoint(SQLModel, table=True):
     notes: Optional[str] = Field(default=None, max_length=500, description="Notes about this endpoint in scenario")
     
     # Relationships
-    scenario: Optional["TestScenario"] = Relationship(back_populates="scenario_endpoints")
+    scenario: Optional["TestScenario"] = Relationship(
+        back_populates="scenario_endpoints",
+        sa_relationship_kwargs={"passive_deletes": True}
+    )
     endpoint: Optional["ApplicationEndpoint"] = Relationship()
     
     @field_validator('expected_status_codes')
