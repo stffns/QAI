@@ -486,5 +486,264 @@ def list_test_scenarios(mapping_id: int) -> str:
         return f"❌ Error listing scenarios: {str(e)}"
 
 
+@tool
+def create_test_scenario(
+    mapping_id: int,
+    scenario_name: str,
+    scenario_type: str,
+    description: str = "",
+    target_concurrent_users: int = 1,
+    max_execution_time_minutes: int = 30
+) -> str:
+    """
+    Create a new test scenario for organizing API endpoints.
+    
+    Args:
+        mapping_id: ID of the app/env/country mapping
+        scenario_name: Name for the scenario (must be unique per mapping)
+        scenario_type: Type of scenario (PERFORMANCE, FUNCTIONAL, SMOKE, REGRESSION, SECURITY, INTEGRATION, BUSINESS_FLOW, LOAD_BALANCER)
+        description: Optional description of what this scenario tests
+        target_concurrent_users: Number of concurrent users for performance scenarios (1-10000)
+        max_execution_time_minutes: Maximum execution time in minutes (1-480)
+        
+    Returns:
+        FINAL result of scenario creation - no further processing needed
+    """
+    try:
+        # Validate scenario type
+        valid_types = [
+            "PERFORMANCE", "FUNCTIONAL", "SMOKE", "REGRESSION", 
+            "BUSINESS_FLOW", "INTEGRATION", "SECURITY", "LOAD_BALANCER"
+        ]
+        
+        scenario_type_upper = scenario_type.upper()
+        if scenario_type_upper not in valid_types:
+            return f"❌ INVALID SCENARIO TYPE: '{scenario_type}'. Valid types: {', '.join(valid_types)}"
+        
+        # Validate constraints
+        if target_concurrent_users < 1 or target_concurrent_users > 10000:
+            return f"❌ INVALID target_concurrent_users: {target_concurrent_users}. Must be between 1 and 10000"
+            
+        if max_execution_time_minutes < 1 or max_execution_time_minutes > 480:
+            return f"❌ INVALID max_execution_time_minutes: {max_execution_time_minutes}. Must be between 1 and 480"
+        
+        manager = qa_api_tools.scenario_manager
+        result = manager.create_scenario(
+            mapping_id=mapping_id,
+            scenario_name=scenario_name,
+            scenario_type=scenario_type_upper,
+            description=description,
+            target_concurrent_users=target_concurrent_users,
+            max_execution_time_minutes=max_execution_time_minutes
+        )
+        
+        if result["success"]:
+            scenario_id = result["scenario_id"]
+            return f"✅ SCENARIO CREATED: '{scenario_name}' (ID: {scenario_id}) - {scenario_type_upper} scenario for mapping {mapping_id}"
+        else:
+            return f"❌ CREATION FAILED: {result.get('error', 'Unknown error')}"
+            
+    except Exception as e:
+        return f"❌ Error creating scenario: {str(e)}"
+
+
+@tool
+def add_endpoints_to_scenario(
+    scenario_id: int,
+    endpoint_ids: str,
+    is_critical: bool = False,
+    execution_weight: int = 1
+) -> str:
+    """
+    Add endpoints to an existing test scenario.
+    
+    Args:
+        scenario_id: ID of the scenario to modify
+        endpoint_ids: Comma-separated list of endpoint IDs to add (e.g., "1,2,5,8")
+        is_critical: Whether these endpoints are critical (failure affects scenario result)
+        execution_weight: Weight for performance testing (1-100, higher = more frequent)
+        
+    Returns:
+        FINAL result of adding endpoints - no further processing needed
+    """
+    try:
+        # Parse endpoint IDs from string
+        try:
+            endpoint_list = [int(x.strip()) for x in endpoint_ids.split(",") if x.strip()]
+        except ValueError:
+            return f"❌ INVALID FORMAT: endpoint_ids must be comma-separated numbers (e.g., '1,2,5')"
+        
+        if not endpoint_list:
+            return f"❌ NO ENDPOINTS: Please provide at least one endpoint ID"
+        
+        manager = qa_api_tools.scenario_manager
+        result = manager.add_endpoints_to_scenario(
+            scenario_id=scenario_id,
+            endpoint_ids=endpoint_list,
+            is_critical=is_critical,
+            weight=execution_weight,
+            auto_order=True
+        )
+        
+        if result["success"]:
+            added = result["added_count"]
+            skipped = result["skipped_count"]
+            return f"✅ ENDPOINTS ADDED: {added} endpoints added to scenario {scenario_id}" + (f" ({skipped} skipped)" if skipped > 0 else "")
+        else:
+            return f"❌ ADD FAILED: {result.get('error', 'Unknown error')}"
+            
+    except Exception as e:
+        return f"❌ Error adding endpoints: {str(e)}"
+
+
+@tool
+def delete_test_scenario(scenario_id: int) -> str:
+    """
+    Delete a test scenario and all its endpoint relationships.
+    
+    Args:
+        scenario_id: ID of the scenario to delete
+        
+    Returns:
+        FINAL result of scenario deletion - no further processing needed
+    """
+    try:
+        manager = qa_api_tools.scenario_manager
+        
+        # First get scenario details for confirmation
+        scenario = manager.get_scenario_with_endpoints(scenario_id)
+        if not scenario:
+            return f"❌ SCENARIO NOT FOUND: No scenario with ID {scenario_id}"
+        
+        scenario_name = scenario["name"]
+        endpoint_count = scenario["total_endpoints"]
+        
+        # Delete the scenario (this will cascade to delete endpoint relationships)
+        with manager.uow_factory.create_scope() as uow:
+            from database.models.test_scenarios import TestScenario
+            
+            scenario_obj = uow.session.get(TestScenario, scenario_id)
+            if scenario_obj:
+                uow.session.delete(scenario_obj)
+                return f"✅ SCENARIO DELETED: '{scenario_name}' (ID: {scenario_id}) and {endpoint_count} endpoint relationships removed"
+            else:
+                return f"❌ DELETE FAILED: Could not find scenario {scenario_id} to delete"
+            
+    except Exception as e:
+        return f"❌ Error deleting scenario: {str(e)}"
+
+
+@tool
+def get_scenario_details(scenario_id: int) -> str:
+    """
+    Get detailed information about a test scenario including all its endpoints.
+    
+    Args:
+        scenario_id: ID of the scenario to inspect
+        
+    Returns:
+        FINAL detailed scenario information - no further processing needed
+    """
+    try:
+        manager = qa_api_tools.scenario_manager
+        scenario = manager.get_scenario_with_endpoints(scenario_id)
+        
+        if not scenario:
+            return f"❌ SCENARIO NOT FOUND: No scenario with ID {scenario_id}"
+        
+        # Format scenario details
+        details = f"📋 SCENARIO: {scenario['name']} (ID: {scenario_id})\n"
+        details += f"Type: {scenario['type']} | Priority: {scenario['priority']} | Active: {scenario['is_active']}\n"
+        details += f"Description: {scenario['description'] or 'No description'}\n"
+        details += f"Max Time: {scenario['max_execution_time_minutes']} min"
+        
+        if scenario.get('target_concurrent_users'):
+            details += f" | Concurrent Users: {scenario['target_concurrent_users']}"
+        
+        details += f"\n\n🔗 ENDPOINTS ({scenario['total_endpoints']}):\n"
+        
+        if scenario['endpoints']:
+            for i, ep in enumerate(scenario['endpoints'][:10], 1):  # Show first 10
+                critical = "🚨" if ep['is_critical'] else "📍"
+                details += f"{critical} {i}. {ep['endpoint_name']} ({ep['http_method']} {ep['endpoint_url']})\n"
+            
+            if len(scenario['endpoints']) > 10:
+                details += f"... and {len(scenario['endpoints']) - 10} more endpoints\n"
+        else:
+            details += "No endpoints configured\n"
+        
+        return details
+        
+    except Exception as e:
+        return f"❌ Error getting scenario details: {str(e)}"
+
+
+@tool
+def search_endpoints_by_name(
+    mapping_id: int,
+    search_terms: str,
+    limit: int = 20
+) -> str:
+    """
+    Search for endpoints by name within a specific mapping.
+    
+    Args:
+        mapping_id: ID of the app/env/country mapping to search within
+        search_terms: Space or comma separated search terms (e.g., "transactions cards help")
+        limit: Maximum number of results to return (default: 20)
+        
+    Returns:
+        FINAL list of matching endpoints with IDs, names, and URLs - no further processing needed
+    """
+    try:
+        manager = qa_api_tools.scenario_manager
+        
+        with manager.uow_factory.create_scope() as uow:
+            session = uow.session
+            
+            # Import here to avoid circular imports
+            from database.models.application_endpoints import ApplicationEndpoint
+            from sqlmodel import select, or_
+            
+            # Parse search terms
+            terms = [term.strip().lower() for term in search_terms.replace(',', ' ').split() if term.strip()]
+            
+            if not terms:
+                return "❌ ERROR: No search terms provided"
+            
+            # Build search query using correct column names
+            query = select(ApplicationEndpoint).where(ApplicationEndpoint.mapping_id == mapping_id)
+            
+            # Create OR conditions for each search term across endpoint_name
+            # Using SQLite-compatible LOWER() + LIKE instead of ILIKE
+            from sqlalchemy import func
+            conditions = []
+            for term in terms:
+                conditions.append(func.lower(ApplicationEndpoint.endpoint_name).like(f"%{term}%"))
+            
+            if conditions:
+                query = query.where(or_(*conditions))
+            
+            query = query.limit(limit)
+            
+            results = session.exec(query).all()
+            
+            if not results:
+                return f"❌ NO ENDPOINTS FOUND: No endpoints matching '{search_terms}' in mapping {mapping_id}"
+            
+            # Format results
+            output = f"🔍 FOUND {len(results)} ENDPOINT(S) for '{search_terms}' in mapping {mapping_id}:\n\n"
+            
+            for ep in results:
+                output += f"🆔 {ep.id}: {ep.endpoint_name} ({ep.http_method} {ep.endpoint_url})\n"
+            
+            return output
+            
+    except Exception as e:
+        logger.error(f"Error searching endpoints: {e}")
+        return f"❌ SEARCH ERROR: {str(e)}"
+
+
 # Export for toolchain discovery
-__all__ = ["api_test_endpoint", "api_health_check"]
+__all__ = ["api_test_endpoint", "api_health_check", "execute_test_scenario", "list_test_scenarios", 
+          "create_test_scenario", "add_endpoints_to_scenario", "delete_test_scenario", "get_scenario_details", "search_endpoints_by_name"]
