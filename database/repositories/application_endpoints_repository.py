@@ -170,6 +170,17 @@ class ApplicationEndpointRepository(BaseRepository[ApplicationEndpoint]):
 
     # === COMPATIBILITY METHODS ===
 
+    def get_endpoints_for_app_env(
+        self,
+        application_id: int,
+        environment_id: int,
+        country_id: int,
+        include_global: bool = True,
+        active_only: bool = True
+    ) -> List[ApplicationEndpoint]:
+        """Get endpoints for app+env+country combination (legacy method)."""
+        return self.get_by_app_env_country_via_mapping(application_id, environment_id, country_id)
+
     def get_by_app_env_country_via_mapping(
         self, 
         application_id: int, 
