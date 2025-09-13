@@ -54,7 +54,7 @@ def main(argv=None):
         # Import core dependencies
         from agno.agent import Agent
         from agno.models.openai import OpenAIChat
-        from config import get_config
+        from config import get_settings
         
         # Add agent directory to path and import modular components
         agent_dir = os.path.join(project_root, 'src', 'agent')
@@ -66,10 +66,10 @@ def main(argv=None):
         from chat_interface import ChatInterface
         
         # Initialize configuration
-        config = get_config()
+        config = get_settings()
         
-        if not config.validate_config():
-            raise ValueError("Invalid configuration")
+        # Validate configuration (new method returns None, just call it)
+        config.validate_config()
         
         # Create component managers
         model_manager = ModelManager(config)
@@ -84,7 +84,7 @@ def main(argv=None):
         # Get configuration
         interface_config = config.get_interface_config()
         instructions = config.get_agent_instructions()
-        reasoning_config = config.get_reasoning_config()
+        reasoning_config = {"enabled": False, "type": "agent"}  # Default reasoning config
         
         # Apply CLI overrides
         # user_id for QA context

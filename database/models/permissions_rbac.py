@@ -1,0 +1,326 @@
+"""
+Modelos SQLModel Mejorados - Sistema de Permisos RBAC
+===================================================
+
+Implementación completa de RBAC con auditoría, jerarquías y permisos contextuales.
+Basado en el análisis de recomendaciones del sistema actual.
+
+Author: QA Intelligence Team
+Date: 2025-09-08
+"""
+
+from datetime import datetime
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
+from enum import Enum
+
+from sqlmodel import SQLModel, Field, Relationship, Column, String, Integer, Boolean, DateTime
+from sqlalchemy import ForeignKey, UniqueConstraint
+from pydantic import validator
+
+
+# =============================================================================
+# ENUMS
+# =============================================================================
+
+class UserStatus(str, Enum):
+    """Estado del usuario en el sistema."""
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    LOCKED = "locked"
+    SUSPENDED = "suspended"
+
+
+class PermissionCategory(str, Enum):
+    """Categorías de permisos del sistema."""
+    ADMIN = "ADMIN"
+    DATA = "DATA"
+    REPORTING = "REPORTING"
+    TESTING = "TESTING"
+    API = "API"
+    SECURITY = "SECURITY"
+
+
+class ResourceType(str, Enum):
+    """Tipos de recursos para permisos contextuales."""
+    SYSTEM = "system"
+    APPLICATION = "application"
+    COUNTRY = "country"
+    ENVIRONMENT = "environment"
+    TEST_SUITE = "test_suite"
+    REPORT = "report"
+    USER = "user"
+    CONFIG = "config"
+
+
+class PermissionAction(str, Enum):
+    """Acciones disponibles para permisos granulares."""
+    CREATE = "create"
+    READ = "read"
+    UPDATE = "update"
+    DELETE = "delete"
+    EXECUTE = "execute"
+    APPROVE = "approve"
+    ADMIN = "admin"
+    VIEW_ALL = "view_all"
+
+
+# =============================================================================
+# MODELOS BASE
+# =============================================================================
+
+class TimestampMixin(SQLModel):
+    """Mixin para campos de timestamp."""
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default=None)
+
+
+class AuditMixin(SQLModel):
+    """Mixin para campos de auditoría."""
+    created_by: Optional[str] = Field(default=None, max_length=100)
+    updated_by: Optional[str] = Field(default=None, max_length=100)
+
+
+# =============================================================================
+# MODELOS PRINCIPALES
+# =============================================================================
+
+class Role(TimestampMixin, AuditMixin, table=True):
+    """
+    Modelo de roles del sistema con soporte para jerarquías.
+    
+    Features:
+    - Jerarquía de roles (parent/child)
+    - Roles de sistema no editables  
+    - Prioridades para resolución de conflictos
+    - Validación de nombres
+    """
+    __tablename__ = "roles"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=50, unique=True, index=True)
+    description: Optional[str] = Field(default=None, max_length=255)
+    
+    # Jerarquía
+    parent_role_id: Optional[int] = Field(default=None, foreign_key="roles.id")
+
+
+class Permission(TimestampMixin, AuditMixin, table=True):
+    """
+    Modelo de permisos con contexto y granularidad.
+    
+    Características:
+    - Permisos contextuales por recurso
+    - Acciones granulares
+    - Scopes para filtrado adicional
+    """
+    
+    __tablename__ = "permissions"  # type: ignore[assignment]
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=100, unique=True, index=True)
+    description: Optional[str] = Field(default=None, max_length=255)
+    category: PermissionCategory = Field(index=True)
+    
+    # Contexto y granularidad
+    resource_type: Optional[ResourceType] = Field(default=None, index=True)
+    action: Optional[PermissionAction] = Field(default=None, index=True)
+    scope: Optional[str] = Field(default=None, max_length=100, description="Scope adicional como app_id, country_code")
+    
+    # Sistema
+    is_system_permission: bool = Field(default=False, description="Permiso del sistema, no editable")
+    is_active: bool = Field(default=True)
+    
+    # Relaciones (disabled to avoid circular imports for now)
+    # role_permissions: List["RolePermission"] = Relationship(back_populates="permission")
+    # user_permissions: List["UserPermission"] = Relationship(back_populates="permission")
+    
+    @validator('name')
+    def validate_name(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError("El nombre del permiso no puede estar vacío")
+        return v.strip().lower()
+    
+    def get_permission_key(self) -> str:
+        """Generar clave única para el permiso."""
+        parts = [self.name]
+        if self.resource_type:
+            parts.append(self.resource_type.value)
+        if self.action:
+            parts.append(self.action.value)
+        if self.scope:
+            parts.append(self.scope)
+        return ":".join(parts)
+
+
+if TYPE_CHECKING:
+    from .users import User  # type: ignore  # unified User model
+
+
+# =============================================================================
+# MODELOS DE RELACIÓN
+# =============================================================================
+
+class UserRole(TimestampMixin, table=True):
+    """Relación many-to-many entre usuarios y roles."""
+
+    __tablename__ = "user_roles"  # type: ignore[assignment]
+    
+    user_id: int = Field(foreign_key="users.id", primary_key=True)
+    role_id: int = Field(foreign_key="roles.id", primary_key=True)
+    
+    # Auditoría
+    assigned_at: datetime = Field(default_factory=datetime.utcnow)
+    assigned_by: Optional[str] = Field(default=None, max_length=100)
+    expires_at: Optional[datetime] = Field(default=None)
+    is_active: bool = Field(default=True)
+    
+    # Relaciones
+    user: User = Relationship(back_populates="user_roles")
+    role: Role = Relationship(back_populates="user_roles")
+    
+    def is_expired(self) -> bool:
+        """Verificar si la asignación de rol ha expirado."""
+        return self.expires_at is not None and self.expires_at < datetime.utcnow()
+
+
+class RolePermission(TimestampMixin, table=True):
+    """
+    Relación many-to-many entre roles y permisos.
+    Esta es la tabla clave para RBAC completo.
+    """
+
+    __tablename__ = "role_permissions"  # type: ignore[assignment]
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    role_id: int = Field(foreign_key="roles.id", index=True)
+    permission_id: int = Field(foreign_key="permissions.id", index=True)
+    
+    # Auditoría
+    granted_at: datetime = Field(default_factory=datetime.utcnow)
+    granted_by: Optional[str] = Field(default=None, max_length=100)
+    is_active: bool = Field(default=True)
+    
+    # Relaciones
+    role: Role = Relationship(back_populates="role_permissions")
+    permission: Permission = Relationship(back_populates="role_permissions")
+
+
+class UserPermission(TimestampMixin, table=True):
+    """
+    Permisos directos de usuario (excepciones al RBAC).
+    Solo para casos especiales donde se requiere permiso específico.
+    """
+
+    __tablename__ = "user_permissions"  # type: ignore[assignment]
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    permission_id: int = Field(foreign_key="permissions.id", index=True)
+    
+    # Auditoría completa
+    granted_at: datetime = Field(default_factory=datetime.utcnow)
+    granted_by: Optional[str] = Field(default=None, max_length=100)
+    revoked_at: Optional[datetime] = Field(default=None)
+    revoked_by: Optional[str] = Field(default=None, max_length=100)
+    expires_at: Optional[datetime] = Field(default=None)
+    is_active: bool = Field(default=True)
+    
+    # Contexto adicional
+    reason: Optional[str] = Field(default=None, max_length=255, description="Razón para permiso directo")
+    
+    # Relaciones
+    user: User = Relationship(back_populates="user_permissions")
+    permission: Permission = Relationship(back_populates="user_permissions")
+    
+    def is_revoked(self) -> bool:
+        """Verificar si el permiso ha sido revocado."""
+        return self.revoked_at is not None
+    
+    def is_expired(self) -> bool:
+        """Verificar si el permiso ha expirado."""
+        return self.expires_at is not None and self.expires_at < datetime.utcnow()
+    
+    def revoke(self, revoked_by: str, reason: Optional[str] = None):
+        """Revocar el permiso."""
+        self.revoked_at = datetime.utcnow()
+        self.revoked_by = revoked_by
+        self.is_active = False
+        if reason:
+            self.reason = f"{self.reason or ''} | REVOKED: {reason}"
+
+
+class AuditLog(TimestampMixin, table=True):
+    """
+    Log de auditoría para cambios en permisos y roles.
+    """
+
+    __tablename__ = "audit_logs_rbac"  # type: ignore[assignment]
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: Optional[int] = Field(default=None, foreign_key="users.id")
+    
+    # Acción
+    action: str = Field(max_length=50, index=True)  # CREATE, UPDATE, DELETE, GRANT, REVOKE
+    entity_type: str = Field(max_length=50, index=True)  # USER, ROLE, PERMISSION, USER_ROLE, etc.
+    entity_id: Optional[int] = Field(default=None)
+    
+    # Detalles
+    old_values: Optional[str] = Field(default=None, description="JSON con valores anteriores")
+    new_values: Optional[str] = Field(default=None, description="JSON con valores nuevos")
+    description: Optional[str] = Field(default=None, max_length=500)
+    
+    # Contexto
+    ip_address: Optional[str] = Field(default=None, max_length=45)
+    user_agent: Optional[str] = Field(default=None, max_length=500)
+    session_id: Optional[str] = Field(default=None, max_length=100)
+    
+    # Relación
+    user: Optional[User] = Relationship(back_populates="audit_logs")
+
+
+# =============================================================================
+# VISTAS Y FUNCIONES AUXILIARES
+# =============================================================================
+
+class UserEffectivePermissionView(SQLModel):
+    """Vista de permisos efectivos por usuario."""
+    user_id: int
+    username: str
+    permission_id: int
+    permission_name: str
+    category: str
+    resource_type: Optional[str]
+    action: Optional[str]
+    scope: Optional[str]
+    source_type: str  # 'role' o 'direct'
+    source_name: str
+
+
+def create_permission_key(name: str, resource_type: Optional[str] = None, 
+                         action: Optional[str] = None, scope: Optional[str] = None) -> str:
+    """Crear clave única para permiso."""
+    parts = [name]
+    if resource_type:
+        parts.append(resource_type)
+    if action:
+        parts.append(action)
+    if scope:
+        parts.append(scope)
+    return ":".join(parts)
+
+
+def validate_permission_context(resource_type: Optional[str], action: Optional[str], 
+                               scope: Optional[str]) -> bool:
+    """Validar contexto de permiso."""
+    # Si se especifica resource_type, debe haber action
+    if resource_type and not action:
+        return False
+    
+    # Validaciones específicas por tipo de recurso
+    if resource_type == ResourceType.APPLICATION.value and not scope:
+        return False  # Aplicaciones requieren app_id en scope
+    
+    if resource_type == ResourceType.COUNTRY.value and not scope:
+        return False  # Países requieren country_code en scope
+    
+    return True

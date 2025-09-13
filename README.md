@@ -12,6 +12,27 @@ Desarrollado con [Agno 1.8.1](https://github.com/agnoai/agno) con arquitectura m
 - ✅ **Sistema de configuración centralizada** - YAML + configurador interactivo
 - ✅ **Herramientas integradas** - Python, Calculadora, Web Search
 - ✅ **Especialización QA** - Instrucciones y conocimiento enfocado en testing
+- ✅ **Database Health Check** - Test automático de integridad y claves foráneas (PRAGMA)
+
+### 🩺 Database Health
+
+![DB Health](https://img.shields.io/badge/DB%20Health-automated-green?style=flat-square)
+
+La integridad de la base SQLite principal (`data/qa_intelligence.db`) se valida en CI mediante:
+
+1. `PRAGMA integrity_check;` (debe devolver `ok`)
+2. `PRAGMA foreign_key_check;` (sin resultados)
+
+Archivo de prueba: `tests/test_database_integrity.py`.
+
+Variables de entorno soportadas:
+
+```bash
+QA_DB_PATH=/ruta/alternativa/qa_intelligence.db   # Usa una BD diferente
+QA_SKIP_DB_INTEGRITY=1                           # Omite el test (solo entornos especiales)
+```
+
+Objetivo: detectar corrupción temprana (índices dañados, FKs obsoletos) antes de desplegar.
 
 ## 🚀 Inicio Rápido
 
@@ -66,6 +87,7 @@ reasoning:
 ## 🏗️ Arquitectura Modular
 
 ### **Componentes principales**
+
 - **QA Agent**: Coordinador principal (SRP)
 - **Model Manager**: Gestión de modelos IA  
 - **Tools Manager**: Herramientas disponibles
@@ -74,6 +96,7 @@ reasoning:
 - **Reasoning Manager**: Capacidades de razonamiento
 
 ### **Entry points**
+
 - `run_qa_agent.py` - Agente principal con CLI y flags
 - `scripts/run_qa_agent.py` - Wrapper que delega a `run_qa_agent.py`
 - `chat_directo.py` - Chat simple cargando `.env`
@@ -142,6 +165,7 @@ python configurator.py
 ```
 
 **Menú del configurador:**
+
 - 🤖 Cambiar modelo de IA
 - 🗄️ Configurar bases de datos  
 - 🛠️ Habilitar/deshabilitar herramientas
@@ -266,6 +290,7 @@ python config.py
 ```
 
 **Salida ejemplo:**
+
 ```
 📋 Configuración Actual
 ==================================================
@@ -344,6 +369,7 @@ python advanced_chat_agent.py
 Demostración rápida con preguntas predefinidas.
 
 **Características:**
+
 - Prueba automática del agente
 - Preguntas de ejemplo
 - Verificación de funcionamiento
@@ -353,12 +379,14 @@ Demostración rápida con preguntas predefinidas.
 Un agente básico de conversación con GPT-3.5-turbo.
 
 **Características:**
+
 - ✅ Conversación simple con IA
 - ✅ Interfaz de línea de comandos
 - ✅ Respuestas en markdown
 - ✅ Memoria de conversación
 
 **Comandos:**
+
 - Escribe cualquier mensaje para conversar
 - `salir`, `quit`, `exit` - Terminar conversación
 
@@ -367,12 +395,14 @@ Un agente básico de conversación con GPT-3.5-turbo.
 Un agente avanzado con herramientas y capacidades extendidas.
 
 **Características:**
+
 - 🔍 Búsqueda en internet con DuckDuckGo
 - 🐍 Ejecución de código Python
 - 💾 Memoria persistente de conversaciones
 - 🌐 Interfaz web opcional (Playground)
 
 **Comandos especiales:**
+
 - `salir` - Terminar conversación
 - `nuevo` - Iniciar nueva conversación
 - `playground` - Abrir interfaz web en <http://localhost:7777>
@@ -433,6 +463,7 @@ OPENAI_API_KEY=sk-proj-O2K8...
 ## 🗄️ Base de Datos
 
 El agente avanzado crea automáticamente:
+
 - `data/chat_conversations.db` - Para almacenar conversaciones
 
 ## 🎯 Próximos Pasos

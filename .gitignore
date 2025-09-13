@@ -134,12 +134,16 @@ dmypy.json
 temp/
 cache/
 logs/
-.vscode/
 .idea/
 .auth_cache.json
+.vscode/
 
-# Development and test files
-test_*.py
+# Ignore only explicitly marked temporary migration drafts (do NOT ignore all migrate_*.py anymore)
+database/_tmp_migrate_*.py
+database/_draft_migrate_*.py
+
+# Development ad-hoc scripts at repo root (keep ignoring those only at root)
+/test_*.py
 calculation*.py
 sqrt_*.py
 demo_*.py
@@ -147,11 +151,35 @@ validate_*.py
 inspect_*.py
 *_demo.py
 improvement*.py
+analisis_*.py
+configurar_*.py
+respuesta_*.py
+final_test_*.py
+
+# Allow committed test modules under tests/ (override root pattern)
+!tests/test_*.py
+
+# Performance testing temporary files
+tools/gatling/src/test/resources/endpoints_*.csv
+tools/gatling/src/test/java/example/Simulation*.java
+!tools/gatling/src/test/java/example/BasicSimulation.java
+!tools/gatling/src/test/java/example/UniversalSimulation.java
+
+# Performance test results and data (exclude from repo)
+data/perf_runs/
+data/perf_archive/
+tools/gatling/target/
+
+# Monitoring and health check data (runtime generated)
+data/monitoring/
+health_report.json
+
+# SQLite WAL and SHM files (runtime generated)
+*.db-shm
+*.db-wal
 
 # Development docs
 docs/initialStage/
 docs/*_improvement.md
 docs/*_fix.md
 docs/*_strategy.md
-
-.github

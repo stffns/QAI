@@ -6,7 +6,7 @@ Modular version with specialized classes and improved architecture
 
 import sys
 from abc import ABC, abstractmethod
-from typing import Any, Protocol, Union, Callable, Sequence
+from typing import Any, Callable, Protocol, Sequence, Union
 
 from agno.agent import Agent
 from agno.memory.v2.memory import Memory
@@ -14,15 +14,22 @@ from agno.models.base import Model
 
 # Use absolute imports - avoid sys.path manipulation
 try:
-    from config import get_config
+    from config import get_settings
 except ImportError:
     # Fallback for development
     import os
 
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-    from config import get_config
+    from config import get_settings
 
+from .agent_builder import AgentBuilder
 from .chat_interface import ChatInterface
+from .error_recovery import (
+    RecoveryConfig,
+    RecoveryStrategy,
+    global_recovery_manager,
+    with_recovery,
+)
 from .model_manager import ModelManager
 from .storage_manager import StorageManager
 from .tools_manager import ToolsManager
@@ -30,24 +37,24 @@ from .tools_manager import ToolsManager
 # Configure Loguru logging
 try:
     from ..logging_config import (
-        get_logger,
-        get_performance_logger,
         LogExecutionTime,
         LogStep,
+        get_logger,
+        get_performance_logger,
         log_agent_event,
         setup_qa_logging,
     )
 except ImportError:
     # Fallback for relative imports
-    import sys
     import os
+    import sys
 
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
     from logging_config import (
-        get_logger,
-        get_performance_logger,
         LogExecutionTime,
         LogStep,
+        get_logger,
+        get_performance_logger,
         log_agent_event,
         setup_qa_logging,
     )
@@ -59,6 +66,9 @@ perf_logger = get_performance_logger()
 
 class ConfigValidator(Protocol):
     """Protocol for configuration validation"""
+
+    # Config attributes
+    tools: Any  # ToolsConfig object with get_enabled_tools() method
 
     def validate_config(self) -> None:
         """
@@ -77,6 +87,18 @@ class ConfigValidator(Protocol):
 
     def get_agent_instructions(self) -> Union[str, list[str]]:
         """Get agent instructions"""
+        ...
+
+    def get_model_config(self) -> dict[str, Any]:
+        """Get model configuration"""
+        ...
+
+    def get_database_config(self) -> dict[str, Any]:
+        """Get database configuration"""
+        ...
+
+    def get_tools_config(self) -> dict[str, Any]:
+        """Get tools configuration"""
         ...
 
 
@@ -146,7 +168,7 @@ class QAAgent:
             storage_manager: Storage manager instance (optional)
         """
         with LogStep("QA Agent initialization", "QAAgent"):
-            self.config = config or get_config()
+            self.config = config or get_settings()
             self.agent: Agent | None = None
 
             # Initialize component managers with dependency injection support
@@ -271,14 +293,24 @@ class QAAgent:
             tool_info = {"index": i, "type": type(tool).__name__}
 
             # Most tools should be callable OR have a 'run' method OR be dict-like OR have 'functions' attribute (agno tools)
+            # OR be agno Function objects with callable entrypoint
             is_callable = callable(tool)
             has_run_method = hasattr(tool, "run") and callable(getattr(tool, "run"))
             is_dict_like = isinstance(tool, dict)
             has_functions = hasattr(tool, "functions")  # agno tools have this
+            is_agno_function = hasattr(tool, "entrypoint") and callable(
+                getattr(tool, "entrypoint")
+            )  # agno Function objects
 
-            if not (is_callable or has_run_method or is_dict_like or has_functions):
+            if not (
+                is_callable
+                or has_run_method
+                or is_dict_like
+                or has_functions
+                or is_agno_function
+            ):
                 invalid_tools.append(
-                    f"Tool {i}: not callable, no 'run' method, not dict-like, and no 'functions' attribute ({type(tool).__name__})"
+                    f"Tool {i}: not callable, no 'run' method, not dict-like, no 'functions' attribute, and no callable 'entrypoint' ({type(tool).__name__})"
                 )
                 continue
 
@@ -305,6 +337,7 @@ class QAAgent:
                 "has_run": has_run_method,
                 "is_dict": is_dict_like,
                 "has_functions": has_functions,
+                "is_agno_function": is_agno_function,
             }
 
             logger.debug(
@@ -409,6 +442,10 @@ class QAAgent:
             AgentCreationError: If agent creation fails
         """
         try:
+            # Get streaming configuration from model config
+            model_config = self.config.get_model_config()
+            stream_enabled = model_config.get("stream", False)
+
             agent = Agent(
                 model=model,
                 instructions=instructions,
@@ -417,12 +454,14 @@ class QAAgent:
                 show_tool_calls=interface_config.get("show_tool_calls", True),
                 markdown=interface_config.get("enable_markdown", True),
                 add_history_to_messages=storage is not None,
+                stream=stream_enabled,  # Enable streaming if configured
             )
 
             logger.info("Agent instance created successfully")
             logger.debug(
                 f"Agent configuration: show_tool_calls={agent.show_tool_calls}, "
-                f"markdown={agent.markdown}, memory_enabled={storage is not None}"
+                f"markdown={agent.markdown}, memory_enabled={storage is not None}, "
+                f"stream_enabled={stream_enabled}"
             )
 
             return agent
@@ -431,6 +470,51 @@ class QAAgent:
             raise AgentCreationError(
                 f"Failed to create Agent instance: {str(e)}"
             ) from e
+
+    @classmethod
+    def create_with_builder(cls, config: ConfigValidator | None = None) -> "QAAgent":
+        """
+        Create QA Agent using the Builder pattern (recommended for complex configurations)
+
+        Args:
+            config: Configuration object
+
+        Returns:
+            QAAgent: Configured QA Agent instance
+
+        Example:
+            qa_agent = QAAgent.create_with_builder(config)
+        """
+        config = config or get_settings()
+
+        with LogExecutionTime("QA Agent creation with Builder", "QAAgent"):
+            logger.info("Creating QA Agent using Builder pattern...")
+
+            try:
+                # Use Builder pattern for enhanced configuration
+                builder = AgentBuilder(config)
+                agent_instance = builder.auto_configure().validate().build()
+
+                # Create QA Agent wrapper
+                qa_agent = cls.__new__(cls)
+                qa_agent.config = config
+                qa_agent.agent = agent_instance
+
+                # Initialize managers for info purposes (they were used by builder)
+                qa_agent.model_manager = builder.model_manager
+                qa_agent.tools_manager = builder.tools_manager
+                qa_agent.storage_manager = builder.storage_manager
+
+                logger.success("QA Agent created successfully using Builder pattern")
+
+                # Log completion event
+                log_agent_event("builder_creation_completed", builder.get_build_info())
+
+                return qa_agent
+
+            except Exception as e:
+                logger.error(f"Failed to create QA Agent with Builder: {e}")
+                raise AgentCreationError(f"Builder creation failed: {e}") from e
 
     def setup_agent(self) -> None:
         """

@@ -11,8 +11,9 @@ from agno.models.openai import OpenAIChat
 from pydantic import ValidationError
 
 # Import our Pydantic configuration models
-from config.models import ModelConfig
-from config.model_config import ModelConfigFactory, validate_model_compatibility
+from config.models.core import ModelConfig
+
+# Remove legacy imports - we'll use the modern configuration directly
 
 
 class ModelManagerError(Exception):
@@ -66,18 +67,15 @@ class ModelManager:
             if not isinstance(raw_config, dict):
                 raise ModelManagerError("get_model_config() must return a dict")
 
-            # Create provider-specific config using factory
-            provider = raw_config.get("provider", "openai")
-            # Remove provider from raw_config to avoid duplicate argument
-            config_data = {k: v for k, v in raw_config.items() if k != "provider"}
-            self._model_config = ModelConfigFactory.create_config(
-                provider, **config_data
-            )
+            # Create ModelConfig directly using Pydantic
+            self._model_config = ModelConfig(**raw_config)
 
-            # Validate model compatibility
-            if not validate_model_compatibility(self._model_config):
+            # Basic validation - ensure provider is supported
+            supported_providers = ["openai", "azure", "deepseek"]
+            if self._model_config.provider not in supported_providers:
                 raise ModelManagerError(
-                    f"Model configuration not compatible: {self._model_config.id}"
+                    f"Unsupported provider: {self._model_config.provider}. "
+                    f"Supported: {supported_providers}"
                 )
 
             return self._model_config
@@ -89,13 +87,13 @@ class ModelManager:
 
     def _build_openai_chat(self, config: ModelConfig) -> Any:
         """
-        Build OpenAIChat instance from Pydantic configuration
+        Build OpenAIChat instance from Pydantic configuration with streaming support
 
         Args:
             config: Validated ModelConfig instance
 
         Returns:
-            Configured OpenAIChat instance
+            Configured OpenAIChat instance with streaming capabilities
         """
         # Get only the fields supported by OpenAIChat
         allowed_fields = {
@@ -109,6 +107,8 @@ class ModelManager:
             "timeout",
             "seed",
             "response_format",
+            # Note: 'stream' is not passed to OpenAIChat constructor
+            # Streaming is handled at the Agent level
         }
 
         # Convert to dict and filter allowed fields
@@ -166,7 +166,7 @@ class ModelManager:
         # Add additional metadata
         info.update(
             {
-                "compatible": validate_model_compatibility(config),
+                "compatible": True,  # We use Pydantic validation directly now
                 "provider_type": type(config).__name__,
             }
         )

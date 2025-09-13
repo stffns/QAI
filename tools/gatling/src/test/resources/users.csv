@@ -1,0 +1,8 @@
+username,password,email,accountId
+user1,pass123,user1@test.com,ACC_001
+user2,pass456,user2@test.com,ACC_002
+user3,pass789,user3@test.com,ACC_003
+testuser1,secret1,testuser1@demo.com,ACC_101
+testuser2,secret2,testuser2@demo.com,ACC_102
+admin,admin123,admin@test.com,ACC_ADMIN
+qauser,qa2024,qauser@qa.com,ACC_QA

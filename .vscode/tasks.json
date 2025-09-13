@@ -1,0 +1,428 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "🚀 Start QA Agent (Chat)",
+			"type": "shell",
+			"command": "source .venv/bin/activate && python run_qa_agent.py",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "new",
+				"showReuseMessage": false
+			},
+			"runOptions": {
+				"instanceLimit": 1
+			},
+			"problemMatcher": [],
+			"detail": "Start the QA Intelligence Agent in chat mode"
+		},
+		{
+			"label": "🌐 Start WebSocket Server",
+			"type": "shell",
+			"command": "source .venv/bin/activate && python run_websocket_server.py",
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "new",
+				"showReuseMessage": false
+			},
+			"isBackground": true,
+			"runOptions": {
+				"instanceLimit": 1
+			},
+			"problemMatcher": [],
+			"detail": "Start the WebSocket Server for real-time communication"
+		},
+		{
+			"label": "👥 Start QA Teams Demo",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"run-teams"
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "new",
+				"showReuseMessage": false
+			},
+			"runOptions": {
+				"instanceLimit": 1
+			},
+			"problemMatcher": [],
+			"detail": "Start the QA Teams collaboration demo"
+		},
+		{
+			"label": "🧪 Run Tests",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"test"
+			],
+			"group": "test",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"problemMatcher": [
+				"$python"
+			],
+			"detail": "Run all tests with coverage report"
+		},
+		{
+			"label": "⚡ Run Tests (Fast)",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"test-fast"
+			],
+			"group": "test",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"problemMatcher": [
+				"$python"
+			],
+			"detail": "Run tests without coverage for faster execution"
+		},
+		{
+			"label": "🔍 Quality Check (All)",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"qa-check"
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"problemMatcher": [
+				"$python"
+			],
+			"detail": "Run comprehensive quality checks (lint, type, security)"
+		},
+		{
+			"label": "🎨 Format Code",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"format"
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "silent",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"problemMatcher": [],
+			"detail": "Format code with Black and isort"
+		},
+		{
+			"label": "🔒 Security Check",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"security"
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"problemMatcher": [
+				"$python"
+			],
+			"detail": "Run security analysis with Bandit"
+		},
+		{
+			"label": "📊 Type Check",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"type-check"
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"problemMatcher": [
+				"$python"
+			],
+			"detail": "Run type checking with MyPy"
+		},
+		{
+			"label": "🧹 Clean Build Artifacts",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"clean"
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "silent",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"problemMatcher": [],
+			"detail": "Clean all build artifacts and cache files"
+		},
+		{
+			"label": "🔧 Install Dependencies",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"install"
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"problemMatcher": [],
+			"detail": "Install production dependencies"
+		},
+		{
+			"label": "🛠️ Install Dev Dependencies",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"install-dev"
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"problemMatcher": [],
+			"detail": "Install development dependencies and setup pre-commit hooks"
+		},
+		{
+			"label": "📚 Build Documentation",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"docs"
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"problemMatcher": [],
+			"detail": "Build project documentation"
+		},
+		{
+			"label": "🔄 Database Migration",
+			"type": "shell",
+			"command": "source .venv/bin/activate && python database/migrations/add_solid_fields.py",
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"problemMatcher": [
+				"$python"
+			],
+			"detail": "Run database migrations"
+		},
+		{
+			"label": "🏗️ Full Setup (Development)",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"install-dev"
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"🧹 Clean Build Artifacts"
+			],
+			"problemMatcher": [],
+			"detail": "Complete development setup: clean, install dependencies, setup hooks"
+		},
+		{
+			"label": "🚀 Quick Start: Agent + WebSocket",
+			"type": "shell",
+			"command": "echo",
+			"args": [
+				"Starting QA Agent and WebSocket Server..."
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"dependsOrder": "parallel",
+			"dependsOn": [
+				"🌐 Start WebSocket Server",
+				"🚀 Start QA Agent (Chat)"
+			],
+			"problemMatcher": [],
+			"detail": "Start both QA Agent and WebSocket Server simultaneously"
+		},
+		{
+			"label": "🌐 Start WebSocket + Prometheus",
+			"type": "shell",
+			"command": "echo",
+			"args": [
+				"Starting WebSocket Server and Prometheus Exporter..."
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"dependsOrder": "parallel",
+			"dependsOn": [
+				"🌐 Start WebSocket Server",
+				"📈 Start Prometheus Exporter"
+			],
+			"problemMatcher": [],
+			"detail": "Start WebSocket Server with integrated Prometheus monitoring"
+		},
+		{
+			"label": "🚀 Full Stack: Agent + WebSocket + Prometheus",
+			"type": "shell",
+			"command": "echo",
+			"args": [
+				"Starting complete QA Intelligence stack..."
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": false
+			},
+			"dependsOrder": "parallel",
+			"dependsOn": [
+				"🌐 Start WebSocket Server",
+				"📈 Start Prometheus Exporter",
+				"🚀 Start QA Agent (Chat)"
+			],
+			"problemMatcher": [],
+			"detail": "Start complete stack: QA Agent, WebSocket Server, and Prometheus monitoring"
+		},
+		{
+			"label": "🌐 Start WebSocket + Prometheus (Managed)",
+			"type": "shell",
+			"command": "source .venv/bin/activate && python scripts/start_services.py",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "new",
+				"showReuseMessage": false
+			},
+			"isBackground": false,
+			"runOptions": {
+				"instanceLimit": 1
+			},
+			"problemMatcher": [],
+			"detail": "Start WebSocket Server and Prometheus with unified management and monitoring"
+		},
+		{
+			"label": "🚀 Start All QA Services (Complete Stack)",
+			"type": "shell",
+			"command": "source .venv/bin/activate && python scripts/start_all_services.py",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "new",
+				"showReuseMessage": false
+			},
+			"isBackground": false,
+			"runOptions": {
+				"instanceLimit": 1
+			},
+			"problemMatcher": [],
+			"detail": "Start complete QA Intelligence stack: Prometheus (9400), Endpoints (9401), REST API (8003), WebSocket (8765) - Ready for React integration"
+		},
+		{
+			"label": "📈 Start Prometheus Exporter",
+			"type": "shell",
+			"command": "source .venv/bin/activate && python -m src.observability.prometheus_exporter",
+			"isBackground": true,
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "silent",
+				"focus": false,
+				"panel": "new",
+				"showReuseMessage": false
+			},
+			"runOptions": {
+				"instanceLimit": 1
+			},
+			"problemMatcher": [],
+			"detail": "Start Prometheus metrics exporter on port 9400"
+		}
+	]
+}

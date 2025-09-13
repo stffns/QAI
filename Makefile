@@ -1,5 +1,22 @@
-# Makefile for QA Intelligence project
+# Makefile for QA Intelligence project (venv-aware)
 .PHONY: help install install-dev test lint format type-check security clean build docs run
+
+# Virtualenv tooling
+VENV_DIR := .venv
+PY := $(VENV_DIR)/bin/python
+PIP := $(PY) -m pip
+PYTEST := $(PY) -m pytest
+RUFF := $(PY) -m ruff
+PYLINT := $(PY) -m pylint
+BLACK := $(PY) -m black
+ISORT := $(PY) -m isort
+MYPY := $(PY) -m mypy
+BANDIT := $(PY) -m bandit
+SAFETY := $(PY) -m safety
+MKDOCS := $(PY) -m mkdocs
+BUILD := $(PY) -m build
+TWINE := $(PY) -m twine
+PRECOMMIT := $(PY) -m pre_commit
 
 # Default target
 help:
@@ -25,43 +42,46 @@ help:
 	@echo "  docs         Build documentation"
 	@echo "  run          Run QA agent (use ARGS=\"--flags\")"
 	@echo "  run-teams    Run QA teams demo"
+	@echo "  run-metrics  Run Prometheus exporter (port 9400)"
+	@echo "  run-server   Run WebSocket server + Prometheus"
+	@echo "  run-stack    Run complete stack (Agent + WebSocket + Prometheus)"
 	@echo ""
 
 # Installation
 install:
-	pip install -e .
+	$(PIP) install -e .
 
 install-dev:
-	pip install -e ".[dev]"
+	$(PIP) install -e '.[dev]'
 
 setup-hooks:
-	pre-commit install
-	pre-commit install --hook-type commit-msg
+	$(PRECOMMIT) install
+	$(PRECOMMIT) install --hook-type commit-msg
 
 # Testing
 test:
-	pytest --cov=src --cov-report=html --cov-report=term-missing
+	$(PYTEST) --cov=src --cov=config --cov-report=html --cov-report=term-missing
 
 test-fast:
-	pytest -x --no-cov
+	$(PYTEST) -x --no-cov
 
 test-integration:
-	pytest -m integration
+	$(PYTEST) -m integration
 
 test-unit:
-	pytest -m unit
+	$(PYTEST) -m unit
 
 # Code quality
 lint:
-	pylint src/ scripts/ config.py
-	ruff check src/ scripts/ config.py
+	$(PYLINT) src/ scripts/ config
+	$(RUFF) check src/ scripts/ config
 
 format:
-	black src/ scripts/ config.py
+	$(BLACK) src/ scripts/ config
+	$(ISORT) src/ scripts/ config
 
 # QA Agent specific validation
-qa-check: lint type-check test-fast
-	@echo "✅ QA checks completed"
+## consolidated below
 
 validate-improvements:
 	@echo "🔍 Validating code quality improvements..."
@@ -88,8 +108,7 @@ demo-logging:
 	@echo "🎭 Running comprehensive logging demonstration..."
 	python scripts/logging_demo.py
 
-show-loguru-summary:
-	show-loguru-summary: ## Show comprehensive Loguru implementation summary
+show-loguru-summary: ## Show comprehensive Loguru implementation summary
 	@echo "🔧 Loguru Implementation Summary"
 	@echo "================================"
 	@python scripts/loguru_summary.py
@@ -116,28 +135,28 @@ view-performance:
 	@echo "⚡ Viewing performance metrics..."
 	@if [ -f logs/performance.log ]; then tail -10 logs/performance.log; else echo "No performance logs found"; fi
 
+
 clean-logs:
 	@echo "🧹 Cleaning old logs..."
 	@rm -rf logs/
 	@echo "✅ Logs cleaned"
-	isort src/ scripts/ config.py
 
 type-check:
-	mypy src/ scripts/ config.py
+	$(MYPY) src/ scripts/ config
 
 security:
-	bandit -r src/ -f json -o security-report.json
-	safety check
+	$(BANDIT) -r src/ -f json -o security-report.json
+	$(SAFETY) check
 
-qa-check: format lint type-check security test
-	@echo "✅ All quality checks passed!"
+qa-check: format lint type-check security test-fast
+	@echo "✅ QA checks completed"
 
 # Documentation
 docs:
-	mkdocs build
+	$(MKDOCS) build
 
 docs-serve:
-	mkdocs serve
+	$(MKDOCS) serve
 
 # Build & Distribution
 clean:
@@ -153,48 +172,72 @@ clean:
 	find . -type f -name "*.pyc" -delete
 
 build: clean
-	python -m build
+	$(BUILD)
 
 publish: build
-	python -m twine upload dist/*
+	$(TWINE) upload dist/*
 
 # Application
 run:
-	python scripts/run_qa_agent.py $(ARGS)
+	$(PY) scripts/run_qa_agent.py $(ARGS)
 
 run-teams:
-	python scripts/demo_qa_teams_integration.py
+	$(PY) scripts/demo_qa_teams_integration.py
+
+run-metrics:
+	$(PY) -m src.observability.prometheus_exporter
+
+run-server:
+	@echo "🌐 Starting WebSocket Server + Prometheus (Managed)..."
+	$(PY) scripts/start_services.py
+
+run-server-parallel:
+	@echo "🌐 Starting WebSocket Server + Prometheus (Parallel)..."
+	@echo "WebSocket Server: http://localhost:8765"
+	@echo "Prometheus Metrics: http://localhost:9400/metrics"
+	@echo "Press Ctrl+C to stop both services"
+	$(PY) -m src.observability.prometheus_exporter & \
+	$(PY) run_websocket_server.py
+
+run-stack:
+	@echo "🚀 Starting Complete QA Intelligence Stack..."
+	@echo "QA Agent: Interactive chat mode"
+	@echo "WebSocket Server: http://localhost:8765" 
+	@echo "Prometheus Metrics: http://localhost:9400/metrics"
+	@echo "Press Ctrl+C to stop all services"
+	$(PY) -m src.observability.prometheus_exporter & \
+	$(PY) run_websocket_server.py &
 
 run-demo:
-	python scripts/demo_qa_intelligence.py
+	$(PY) scripts/demo_qa_intelligence.py
 
 validate-teams:
-	python scripts/validate_agno_teams.py
+	$(PY) scripts/validate_agno_teams.py
 
 inspect-memory:
-	python scripts/inspect_memory.py
+	$(PY) scripts/inspect_memory.py
 
 # Development utilities
 deps-check:
-	pip list --outdated
+	$(PIP) list --outdated
 
 deps-update:
-	pip-review --local --interactive
+	$(PY) -m pip_review --local --interactive || true
 
 profile:
-	python -m cProfile -o profile.stats scripts/run_qa_agent.py
-	python -c "import pstats; pstats.Stats('profile.stats').sort_stats('cumulative').print_stats(20)"
+	$(PY) -m cProfile -o profile.stats scripts/run_qa_agent.py
+	$(PY) -c "import pstats; pstats.Stats('profile.stats').sort_stats('cumulative').print_stats(20)"
 
 # CI/CD helpers
 ci-install:
-	pip install -e ".[dev]"
+	$(PIP) install -e '.[dev]'
 
 ci-test:
-	pytest --cov=src --cov-report=xml --junitxml=junit.xml
+	$(PYTEST) --cov=src --cov-report=xml --junitxml=junit.xml
 
 ci-lint:
-	ruff check src/ scripts/ config.py --format=github
-	pylint src/ scripts/ config.py --output-format=json --reports=no --score=no > pylint-report.json || true
+	$(RUFF) check src/ scripts/ config.py --format=github
+	$(PYLINT) src/ scripts/ config.py --output-format=json --reports=no --score=no > pylint-report.json || true
 
 # Docker (if needed)
 docker-build:
@@ -217,4 +260,18 @@ pre-commit:
 
 # Performance monitoring
 benchmark:
-	python -m pytest benchmarks/ --benchmark-only --benchmark-sort=mean
+	$(PYTEST) benchmarks/ --benchmark-only --benchmark-sort=mean
+
+# Git workflow (solo developer)
+push-branch:
+	@echo "� Pushing current branch..."
+	@git push origin $$(git branch --show-current)
+
+prepare-pr: qa-check test push-branch
+	@echo "✅ All checks passed, ready for PR"
+	@echo "🌐 Go to: https://github.com/stffns/QAI/compare/develop...$$(git branch --show-current)"
+	@git status
+
+prepare-release: clean qa-check test
+	@echo "🚀 Preparing release..."
+	@git status

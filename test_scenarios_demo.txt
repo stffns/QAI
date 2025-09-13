@@ -1,0 +1,1 @@
+Muéstrame todos los escenarios de testing disponibles para el mapping ID 1

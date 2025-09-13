@@ -10,9 +10,17 @@ from sqlmodel import Session, create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
+from sqlmodel import SQLModel
 
 from .interfaces import IUnitOfWork, IRepository
 from .users import UserRepository
+from .apps_repository import AppsRepository
+from .countries_repository import CountriesRepository
+from .environments_repository import EnvironmentsRepository
+from .app_environment_country_mappings_repository import AppEnvironmentCountryMappingRepository
+from .application_endpoints_repository import ApplicationEndpointRepository
+from .api_collections_repository import ApiCollectionsRepository
+# from .api_requests_repository import ApiRequestsRepository  # REMOVED - using ApplicationEndpointRepository instead
 from .exceptions import RepositoryError
 
 # Generic type for repositories
@@ -44,6 +52,53 @@ class UnitOfWork(IUnitOfWork):
         if 'users' not in self._repositories:
             self._repositories['users'] = UserRepository(self._session)
         return cast(UserRepository, self._repositories['users'])
+
+    @property
+    def apps(self) -> AppsRepository:
+        """Get or create AppsRepository"""
+        if 'apps' not in self._repositories:
+            self._repositories['apps'] = AppsRepository(self._session)
+        return cast(AppsRepository, self._repositories['apps'])
+
+    @property
+    def countries(self) -> CountriesRepository:
+        """Get or create CountriesRepository"""
+        if 'countries' not in self._repositories:
+            self._repositories['countries'] = CountriesRepository(self._session)
+        return cast(CountriesRepository, self._repositories['countries'])
+
+    @property
+    def environments(self) -> EnvironmentsRepository:
+        """Get or create EnvironmentsRepository"""
+        if 'environments' not in self._repositories:
+            self._repositories['environments'] = EnvironmentsRepository(self._session)
+        return cast(EnvironmentsRepository, self._repositories['environments'])
+    
+    @property
+    def app_environment_country_mappings(self) -> AppEnvironmentCountryMappingRepository:
+        """Get or create AppEnvironmentCountryMapping repository"""
+        if 'app_environment_country_mappings' not in self._repositories:
+            self._repositories['app_environment_country_mappings'] = AppEnvironmentCountryMappingRepository(self._session)
+        return cast(AppEnvironmentCountryMappingRepository, self._repositories['app_environment_country_mappings'])
+
+    @property
+    def application_endpoints(self) -> ApplicationEndpointRepository:
+        """Get or create ApplicationEndpoint repository (clean structure)"""
+        if 'application_endpoints' not in self._repositories:
+            self._repositories['application_endpoints'] = ApplicationEndpointRepository(self._session)
+        return cast(ApplicationEndpointRepository, self._repositories['application_endpoints'])
+
+    @property
+    def api_collections(self) -> ApiCollectionsRepository:
+        if 'api_collections' not in self._repositories:
+            self._repositories['api_collections'] = ApiCollectionsRepository(self._session)
+        return cast(ApiCollectionsRepository, self._repositories['api_collections'])
+
+    # @property - REMOVED api_requests - using application_endpoints instead
+    # def api_requests(self) -> ApiRequestsRepository:
+    #     if 'api_requests' not in self._repositories:
+    #         self._repositories['api_requests'] = ApiRequestsRepository(self._session)
+    #     return cast(ApiRequestsRepository, self._repositories['api_requests'])
     
     def get_repository(self, repository_class: Type[T]) -> T:
         """
@@ -160,6 +215,34 @@ class UnitOfWorkFactory:
         """Initialize factory with database engine"""
         self.engine = engine
         self.session_factory = sessionmaker(bind=engine, class_=Session)
+        # Ensure all tables exist for repositories that may be used immediately
+        try:
+            # Import models to register them into SQLModel.metadata
+            try:
+                from database.models import (
+                    # Ensure base models always import
+                    BaseModel,
+                )
+                # Import performance models explicitly so FKs resolve
+                from database.models.performance_test_executions import PerformanceTestExecution  # noqa: F401
+                from database.models.performance_test_configs import PerformanceTestConfig  # noqa: F401
+                # Import other commonly used models
+                from database.models.app_environment_country_mappings import AppEnvironmentCountryMapping  # noqa: F401
+                from database.models.application_endpoints import ApplicationEndpoint  # noqa: F401
+                from database.models.apps import Apps  # noqa: F401
+                from database.models.environments import Environments  # noqa: F401
+                from database.models.countries import Countries  # noqa: F401
+                from database.models.api_collections import ApiCollection  # noqa: F401
+                # Import test scenarios models to register table relationships
+                from database.models.test_scenarios import TestScenario, TestScenarioEndpoint  # noqa: F401
+                # from database.models.api_collections import ApiRequest  # REMOVED - deprecated
+            except Exception:
+                # Soft-fail; metadata may still be complete enough
+                pass
+            SQLModel.metadata.create_all(self.engine)
+        except Exception:
+            # Non-fatal: some environments may manage migrations externally
+            pass
     
     def create(self) -> UnitOfWork:
         """Create new UnitOfWork instance with fresh session"""
