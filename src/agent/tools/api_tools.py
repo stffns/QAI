@@ -745,5 +745,5 @@ def search_endpoints_by_name(
 
 
 # Export for toolchain discovery
-__all__ = ["api_test_endpoint", "api_health_check", "execute_test_scenario", "list_test_scenarios", 
+__all__ = ["api_test_endpoint", "api_health_check", "list_test_scenarios", 
           "create_test_scenario", "add_endpoints_to_scenario", "delete_test_scenario", "get_scenario_details", "search_endpoints_by_name"]
