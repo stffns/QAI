@@ -1159,7 +1159,7 @@ class WebSocketServer:
             if environment_path:
                 path_lines.append(f"environment_path={environment_path}")
             path_lines.append(
-                "Agent: You may choose to import using the postman_import tool if appropriate."
+                "Agent: Postman collection detected and available for import."
             )
 
             # Extend content (avoid excessive growth)
@@ -1170,7 +1170,7 @@ class WebSocketServer:
                 ):  # keep under limit
                     chat_payload.content += new_suffix
                 else:  # fallback minimal hint
-                    chat_payload.content += "\n[ATTACHMENT] Postman collection saved. Use postman_import tool."
+                    chat_payload.content += "\n[ATTACHMENT] Postman collection saved and ready for import."
             except Exception:
                 pass
 
@@ -1225,16 +1225,21 @@ class WebSocketServer:
             pass
 
         try:
-            from src.agent.tools.postman_tools import (
-                postman_import as postman_import_tool,
-            )
+            from src.importers.postman_endpoint_importer import PostmanEndpointImporter
+            from database.connection import db_manager
 
-            import_result = postman_import_tool(
-                collection_path=str(collection_path),
-                environment_path=str(environment_path) if environment_path else None,
-                mapping_id=mapping_id,
-                store_raw=True,
-            )
+            if not collection_path:
+                raise ValueError("No collection path available for import")
+
+            with db_manager.get_session() as session:
+                importer = PostmanEndpointImporter(session)
+                import_result = importer.import_collection(
+                    collection_path=Path(collection_path),
+                    environment_path=Path(environment_path) if environment_path else None,
+                    application_code="EVA",  # Default values since we don't have them in payload
+                    environment_code="STA",
+                    country_code="RO",
+                )
         except Exception as e:
             self.logger.error(f"Postman import failed: {e}")
             error_envelope = WebSocketEnvelopeFactory.create_error_event(
@@ -1278,7 +1283,7 @@ class WebSocketServer:
             user_id=user_id,
             correlation_id=chat_envelope.id,
             response_type="postman_import_summary",
-            tools_used=["postman_import"],
+            tools_used=["postman_endpoint_importer"],
         )
         await self._send_event(websocket, response_envelope)
 

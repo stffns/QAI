@@ -744,6 +744,94 @@ def search_endpoints_by_name(
         return f"❌ SEARCH ERROR: {str(e)}"
 
 
+@tool
+def import_postman_collection(
+    collection_path: str,
+    environment_path: Optional[str] = None,
+    application_code: str = "EVA",
+    environment_code: str = "STA",
+    country_code: str = "RO"
+) -> str:
+    """
+    Import Postman collection and environment to endpoints database.
+    
+    Args:
+        collection_path: Path to .postman_collection.json file
+        environment_path: Optional path to .postman_environment.json file  
+        application_code: Application code (EVA, ONEAPP, etc.)
+        environment_code: Environment code (STA, UAT, PRD, etc.)
+        country_code: Country code (RO, FR, CO, etc.)
+        
+    Returns:
+        Import summary with created endpoints count
+    """
+    try:
+        from pathlib import Path
+        import sys, os
+        sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        from src.importers.postman_endpoint_importer import PostmanEndpointImporter
+        from database.connection import db_manager
+        
+        # Validate collection file exists
+        collection_file = Path(collection_path)
+        if not collection_file.exists():
+            return f"❌ IMPORT ERROR: Collection file not found: {collection_path}"
+            
+        if not collection_file.suffix == '.json':
+            return f"❌ IMPORT ERROR: Collection file must be .json format: {collection_path}"
+        
+        # Validate environment file if provided
+        env_file = None
+        if environment_path:
+            env_file = Path(environment_path)
+            if not env_file.exists():
+                return f"❌ IMPORT ERROR: Environment file not found: {environment_path}"
+            if not env_file.suffix == '.json':
+                return f"❌ IMPORT ERROR: Environment file must be .json format: {environment_path}"
+        
+        # Perform import
+        with LogStep(f"Importing Postman collection: {collection_file.name}", "ImportTool"):
+            with db_manager.get_session() as session:
+                importer = PostmanEndpointImporter(session)
+                result = importer.import_collection(
+                    collection_path=collection_file,
+                    environment_path=env_file,
+                    application_code=application_code,
+                    environment_code=environment_code,
+                    country_code=country_code
+                )
+        
+        # Check for import errors
+        if "error" in result:
+            return f"❌ IMPORT ERROR: {result['error']}"
+        
+        # Format success response
+        summary = [
+            f"✅ POSTMAN IMPORT SUCCESSFUL",
+            f"📂 Collection: {collection_file.name}",
+            f"🏢 Application: {result['application']} | Environment: {result['environment']} | Country: {result['country']}",
+            f"📊 Results: {result['endpoints_created']} created, {result['endpoints_updated']} updated",
+            f"🔗 Total endpoints: {result['total_endpoints']}",
+            f"📋 Mapping ID: {result['mapping_id']}"
+        ]
+        
+        if environment_path and env_file:
+            summary.insert(2, f"🌍 Environment: {env_file.name}")
+            
+        if result.get('execution_variables'):
+            var_count = len(result['execution_variables'].get('variables_extracted', []))
+            if var_count > 0:
+                summary.append(f"🔧 Variables extracted: {var_count}")
+        
+        logger.info(f"✅ Postman import completed: {result['total_endpoints']} endpoints for {application_code}-{environment_code}-{country_code}")
+        
+        return "\n".join(summary)
+        
+    except Exception as e:
+        logger.error(f"Error importing Postman collection: {e}")
+        return f"❌ IMPORT ERROR: {str(e)}"
+
+
 # Export for toolchain discovery
 __all__ = ["api_test_endpoint", "api_health_check", "list_test_scenarios", 
-          "create_test_scenario", "add_endpoints_to_scenario", "delete_test_scenario", "get_scenario_details", "search_endpoints_by_name"]
+          "create_test_scenario", "add_endpoints_to_scenario", "delete_test_scenario", "get_scenario_details", "search_endpoints_by_name", "import_postman_collection"]

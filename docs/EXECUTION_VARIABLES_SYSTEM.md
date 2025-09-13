@@ -92,17 +92,22 @@ success = manager.initialize_execution_variables(app_id, env_id, country_id)
 ### 4. Herramienta del Agente
 
 ```python
-from src.agent.tools.postman_agent_tool import postman_agent_tool
+from src.agent.tools.execution_variables_manager import (
+    get_execution_variables,
+    update_postman_runtime_values,
+    add_execution_variables,
+    initialize_mapping_variables
+)
 
-# Obtener variables por códigos
-vars = postman_agent_tool.get_variables_for_test("EVA", "STA", "RO")
+# Obtener variables (usando IDs reales de la base de datos)
+vars = get_execution_variables(app_id=1, env_id=1, country_id=1)
 
-# Actualizar durante ejecución de test
-result = postman_agent_tool.update_test_variables("EVA", "STA", "RO", {
+# Actualizar durante ejecución de test  
+success = update_postman_runtime_values(app_id=1, env_id=1, country_id=1, {
     "access_token": "new_token_xyz"
 })
 
-# Generar environment de Postman
+# Las variables se integran automáticamente con PostmanEndpointImporter
 postman_env = postman_agent_tool.generate_postman_environment("EVA", "STA", "RO")
 ```
 
