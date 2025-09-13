@@ -48,6 +48,7 @@ help:
 	@echo ""
 	@echo "Database Migration:"
 	@echo "  migrate-to-supabase  Run complete Supabase migration"
+	@echo "  demo-supabase        Demo migration readiness and flow"
 	@echo "  check-supabase       Check Supabase configuration"
 	@echo "  init-supabase-db     Initialize database tables"
 	@echo "  test-supabase        Test database connection"
@@ -154,7 +155,7 @@ migrate-to-supabase: ## Run Supabase migration setup and validation
 
 check-supabase: ## Check Supabase configuration and connection
 	@echo "🔍 Checking Supabase setup..."
-	$(PY) -c "from config.supabase import is_supabase_configured, check_supabase_connection; print('✅ Configured' if is_supabase_configured() else '❌ Not configured')"
+	$(PY) -c "from config.supabase import is_supabase_configured; print('✅ Configured' if is_supabase_configured() else '❌ Not configured')"
 
 init-supabase-db: ## Initialize Supabase database with tables
 	@echo "🏗️ Initializing Supabase database..."
@@ -163,6 +164,10 @@ init-supabase-db: ## Initialize Supabase database with tables
 test-supabase: ## Test Supabase database connection
 	@echo "🧪 Testing Supabase connection..."
 	$(PY) -c "from database.connection import test_connection; test_connection()"
+
+demo-supabase: ## Run Supabase migration demo and readiness check
+	@echo "🎭 Running Supabase migration demo..."
+	$(PY) scripts/demo_supabase_migration.py
 
 type-check:
 	$(MYPY) src/ scripts/ config
