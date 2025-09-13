@@ -65,11 +65,9 @@ class DatabaseManager:
                 # Use Supabase-optimized configuration
                 config = get_supabase_config()
                 if config is not None:
-                    return create_engine(
-                        self.database_url,
-                        **config.connection_kwargs,
-                        echo=self.echo
-                    )
+                    kwargs = config.connection_kwargs.copy()
+                    kwargs["echo"] = self.echo  # Override echo with our setting
+                    return create_engine(self.database_url, **kwargs)
             
             # Fallback to standard PostgreSQL configuration
             return create_engine(

@@ -73,6 +73,7 @@ def validate_models():
         # Import additional models individually
         from database.models.performance_endpoint_results import PerformanceEndpointResults
         from database.models.performance_test_executions import PerformanceTestExecution
+        from database.models.performance_test_configs import PerformanceTestConfig
         from database.models.api_collections import ApiCollection
         from database.models.test_scenarios import TestScenario
         

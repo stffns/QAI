@@ -4,12 +4,14 @@ Esta guía te ayudará a migrar QA Intelligence de SQLite a Supabase PostgreSQL 
 
 ## ¿Por qué migrar a Supabase?
 
-### Problemas con SQLite:
+### Problemas con SQLite
+
 - ❌ **Concurrencia limitada**: Errores "database disk image is malformed"
 - ❌ **Bloqueos**: Múltiples servicios (WebSocket, Prometheus) causan conflictos
 - ❌ **Escalabilidad**: No adecuado para múltiples procesos simultáneos
 
-### Beneficios de Supabase:
+### Beneficios de Supabase
+
 - ✅ **Concurrencia robusta**: PostgreSQL maneja múltiples conexiones perfectamente
 - ✅ **APIs automáticas**: REST API y GraphQL incluidos
 - ✅ **Tiempo real**: Subscripciones en vivo para cambios de datos
@@ -31,12 +33,14 @@ Esta guía te ayudará a migrar QA Intelligence de SQLite a Supabase PostgreSQL 
 
 En tu proyecto Supabase:
 
-### Database URL (Settings > Database):
+### Database URL (Settings > Database)
+
 ```
 postgresql://postgres.[proyecto]:[contraseña]@aws-0-[región].pooler.supabase.com:6543/postgres
 ```
 
-### API Keys (Settings > API):
+### API Keys (Settings > API)
+
 - **Project URL**: `https://[proyecto].supabase.co`
 - **anon public**: Para aplicaciones cliente
 - **service_role**: Para operaciones de backend (úsala)
@@ -44,11 +48,13 @@ postgresql://postgres.[proyecto]:[contraseña]@aws-0-[región].pooler.supabase.c
 ## Paso 3: Configurar Conexión
 
 1. Copia el archivo de configuración:
+
 ```bash
 cp .env.supabase .env.supabase.local
 ```
 
 2. Edita `.env.supabase.local` con tus credenciales reales:
+
 ```bash
 # Supabase Project Details
 SUPABASE_URL=https://tu-proyecto.supabase.co
@@ -140,19 +146,23 @@ Después de migrar, deberías ver:
 ## Troubleshooting
 
 ### Error: "Supabase not configured"
+
 - Verifica que `.env.supabase` exista y tenga las variables correctas
 - Asegúrate de que `DATABASE_URL` comience con `postgresql://`
 
 ### Error: "Connection failed"
+
 - Verifica que la contraseña sea correcta
 - Confirma que el proyecto Supabase esté activo
 - Revisa la región en el connection string
 
 ### Error: "SSL required"
+
 - Supabase requiere SSL por defecto
 - Nuestra configuración ya incluye `sslmode=require`
 
 ### Performance lento
+
 - Ajusta `SUPABASE_POOL_SIZE` según tu carga
 - Considera usar connection pooling de Supabase (puerto 6543)
 
@@ -161,6 +171,7 @@ Después de migrar, deberías ver:
 ⚠️ **Importante**: Esta migración crea un esquema limpio. Los datos de SQLite no se migran automáticamente.
 
 Si necesitas migrar datos específicos:
+
 1. Exporta datos importantes de SQLite
 2. Usa los scripts en `scripts/` para importar a Supabase
 3. O recrea los datos necesarios usando las APIs existentes
