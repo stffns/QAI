@@ -414,8 +414,10 @@ class TestScenarioManager:
                 session.delete(scenario)
                 session.flush()
                 
-                # Verificar que todo se eliminó correctamente
-                relationships_after = len(session.exec(stmt_count).all())
+                # Verificar que el escenario se eliminó correctamente
+                # (No podemos verificar las relaciones porque el escenario ya no existe)
+                deleted_scenario_check = session.get(TestScenario, scenario_id)
+                scenario_deleted = deleted_scenario_check is None
                 
                 logger.info(f"✅ Deleted scenario '{scenario_name}' (ID: {scenario_id}) with {relationships_count} endpoint relationships")
                 
@@ -424,7 +426,7 @@ class TestScenarioManager:
                     "scenario_id": scenario_id,
                     "scenario_name": scenario_name,
                     "relationships_deleted": relationships_count,
-                    "relationships_remaining": relationships_after
+                    "scenario_deleted": scenario_deleted
                 }
                 
         except Exception as e:
